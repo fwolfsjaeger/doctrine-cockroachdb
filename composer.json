@@ -1,0 +1,49 @@
+{
+  "name": "fwolfsjaeger/doctrine-cockroachdb",
+  "type": "library",
+  "description": "Doctrine DBAL CockroachDB Driver",
+  "keywords": [
+    "pdo_pgsql",
+    "pdo",
+    "cockroach",
+    "cockroachdb",
+    "doctrine",
+    "doctrine-cockroachdb"
+  ],
+  "license": "MIT",
+  "minimum-stability": "stable",
+  "authors": [
+    {
+      "name": "Florian Wolfsjaeger",
+      "email": "florian@wolfsjaeger.at"
+    }
+  ],
+  "require": {
+    "php": "^8.0",
+    "ext-pdo": "*",
+    "ext-pgsql": "*",
+    "doctrine/dbal": "^3.6"
+  },
+  "require-dev": {
+    "squizlabs/php_codesniffer": "^3.7",
+    "phpunit/phpunit": "^10.1",
+    "phpstan/phpstan": "^1.10"
+  },
+  "config": {
+    "sort-packages": true,
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "composer/package-versions-deprecated": true
+    }
+  },
+  "autoload": {
+    "psr-4": {
+      "DoctrineCockroachDB\\": "src"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "DoctrineCockroachDB\\Tests\\": "tests"
+    }
+  }
+}
