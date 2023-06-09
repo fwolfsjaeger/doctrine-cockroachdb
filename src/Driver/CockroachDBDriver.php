@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace DoctrineCockroachDB\Driver;
 
 use Doctrine\DBAL;
-use Doctrine\DBAL\Driver\PDO\Connection;
 use Doctrine\DBAL\Driver\AbstractPostgreSQLDriver;
+use Doctrine\DBAL\Driver\PDO\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
+use Doctrine\Deprecations\Deprecation;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
-use Doctrine\Deprecations\Deprecation;
 use PDO;
 
 class CockroachDBDriver extends AbstractPostgreSQLDriver
@@ -35,7 +35,7 @@ class CockroachDBDriver extends AbstractPostgreSQLDriver
 
         if (
             !isset($driverOptions[PDO::PGSQL_ATTR_DISABLE_PREPARES])
-            || $driverOptions[PDO::PGSQL_ATTR_DISABLE_PREPARES] === true
+            || true === $driverOptions[PDO::PGSQL_ATTR_DISABLE_PREPARES]
         ) {
             $pdo->setAttribute(PDO::PGSQL_ATTR_DISABLE_PREPARES, true);
         }
@@ -61,11 +61,11 @@ class CockroachDBDriver extends AbstractPostgreSQLDriver
     {
         $dsn = 'pgsql:';
 
-        if (isset($params['host']) && $params['host'] !== '') {
+        if (isset($params['host']) && '' !== $params['host']) {
             $dsn .= 'host=' . $params['host'] . ';';
         }
 
-        if (isset($params['port']) && $params['port'] !== '') {
+        if (isset($params['port']) && '' !== $params['port']) {
             $dsn .= 'port=' . $params['port'] . ';';
         }
 
@@ -110,10 +110,10 @@ class CockroachDBDriver extends AbstractPostgreSQLDriver
 
     /**
      * @deprecated
-     * @link CockroachDBSchemaManager::createSchemaManager()
+     * @see CockroachDBSchemaManager::createSchemaManager()
      */
     public function getSchemaManager(
-        DBAL\Connection  $conn,
+        DBAL\Connection $conn,
         AbstractPlatform $platform,
     ): CockroachDBSchemaManager {
         Deprecation::triggerIfCalledFromOutside(

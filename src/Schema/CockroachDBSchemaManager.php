@@ -18,7 +18,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
 {
     protected function _getPortableSequenceDefinition($sequence): Sequence
     {
-        if ($sequence['schemaname'] !== 'public') {
+        if ('public' !== $sequence['schemaname']) {
             $sequenceName = $sequence['schemaname'] . '.' . $sequence['relname'];
         } else {
             $sequenceName = $sequence['relname'];
@@ -49,7 +49,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
      */
     private function fixNegativeNumericDefaultValue(?string $defaultValue): ?string
     {
-        if ($defaultValue !== null && str_starts_with($defaultValue, '(')) {
+        if (null !== $defaultValue && str_starts_with($defaultValue, '(')) {
             return trim($defaultValue, '()');
         }
 
@@ -133,6 +133,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
             case 'serial8':
                 $autoincrement = true;
                 // intentional fall-through
+                // no break
             case 'smallint':
             case 'int2':
             case 'int':
@@ -146,11 +147,11 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
 
             case 'bool':
             case 'boolean':
-                if ($tableColumn['default'] === 'true') {
+                if ('true' === $tableColumn['default']) {
                     $tableColumn['default'] = true;
                 }
 
-                if ($tableColumn['default'] === 'false') {
+                if ('false' === $tableColumn['default']) {
                     $tableColumn['default'] = false;
                 }
 
@@ -287,13 +288,13 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
         if (null !== $tableName) {
             if (str_contains($tableName, '.')) {
                 [$schemaName, $tableName] = explode('.', $tableName);
-                $conditions[] = "n.nspname = " . $this->_platform->quoteStringLiteral($schemaName);
+                $conditions[] = 'n.nspname = ' . $this->_platform->quoteStringLiteral($schemaName);
             } else {
-                $conditions[] = "n.nspname = ANY(current_schemas(false))";
+                $conditions[] = 'n.nspname = ANY(current_schemas(false))';
             }
 
             $identifier = new Identifier($tableName);
-            $conditions[] = "c.relname = " . $this->_platform->quoteStringLiteral($identifier->getName());
+            $conditions[] = 'c.relname = ' . $this->_platform->quoteStringLiteral($identifier->getName());
         }
 
         $conditions[] = "n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast', 'pg_extension', 'crdb_internal')";
@@ -304,29 +305,29 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
     protected function selectTableColumns(string $databaseName, ?string $tableName = null): Result
     {
         $columns = [];
-        $columns[] = "a.attnum";
-        $columns[] = "quote_ident(a.attname) AS field";
-        $columns[] = "t.typname AS type";
-        $columns[] = "format_type(a.atttypid, a.atttypmod) AS complete_type";
-        $columns[] = "(SELECT tc.collcollate FROM pg_catalog.pg_collation tc WHERE tc.oid = a.attcollation) AS collation";
-        $columns[] = "(SELECT t1.typname FROM pg_catalog.pg_type t1 WHERE t1.oid = t.typbasetype) AS domain_type";
+        $columns[] = 'a.attnum';
+        $columns[] = 'quote_ident(a.attname) AS field';
+        $columns[] = 't.typname AS type';
+        $columns[] = 'format_type(a.atttypid, a.atttypmod) AS complete_type';
+        $columns[] = '(SELECT tc.collcollate FROM pg_catalog.pg_collation tc WHERE tc.oid = a.attcollation) AS collation';
+        $columns[] = '(SELECT t1.typname FROM pg_catalog.pg_type t1 WHERE t1.oid = t.typbasetype) AS domain_type';
         $columns[] = "(SELECT format_type(t2.typbasetype, t2.typtypmod) FROM pg_catalog.pg_type t2 WHERE t2.typtype = 'd' AND t2.oid = a.atttypid) AS domain_complete_type, a.attnotnull AS isnotnull";
         $columns[] = "(SELECT 't' FROM pg_index WHERE c.oid = pg_index.indrelid AND pg_index.indkey[0] = a.attnum AND pg_index.indisprimary = 't') AS pri";
-        $columns[] = "(SELECT pg_get_expr(adbin, adrelid) FROM pg_attrdef WHERE c.oid = pg_attrdef.adrelid AND pg_attrdef.adnum=a.attnum) AS default";
-        $columns[] = "(SELECT pg_description.description FROM pg_description WHERE pg_description.objoid = c.oid AND a.attnum = pg_description.objsubid) AS comment";
+        $columns[] = '(SELECT pg_get_expr(adbin, adrelid) FROM pg_attrdef WHERE c.oid = pg_attrdef.adrelid AND pg_attrdef.adnum=a.attnum) AS default';
+        $columns[] = '(SELECT pg_description.description FROM pg_description WHERE pg_description.objoid = c.oid AND a.attnum = pg_description.objsubid) AS comment';
 
         if (null === $tableName) {
-            $columns[] = "c.relname AS table_name";
-            $columns[] = "n.nspname AS schema_name";
+            $columns[] = 'c.relname AS table_name';
+            $columns[] = 'n.nspname AS schema_name';
         }
 
-        $conditions = ["a.attnum > 0", "c.relkind = 'r'", "d.refobjid IS NULL"];
+        $conditions = ['a.attnum > 0', "c.relkind = 'r'", 'd.refobjid IS NULL'];
         $conditions = array_merge($conditions, $this->buildQueryConditions($tableName));
 
-        $sql = "
+        $sql = '
             SELECT
-                " . implode(",
-                ", $columns) . "
+                ' . implode(',
+                ', $columns) . "
             FROM
                 pg_attribute AS a
                 INNER JOIN pg_class AS c ON (
@@ -344,10 +345,10 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                     AND d.classid = (SELECT oid FROM pg_class WHERE relname = 'pg_class')
                 )
             WHERE
-                " . implode("
-                AND ", $conditions) . "
+                " . implode('
+                AND ', $conditions) . '
             ORDER BY
-                a.attnum ASC";
+                a.attnum ASC';
 
         return $this->_conn->executeQuery($sql);
     }
@@ -355,25 +356,25 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
     protected function selectIndexColumns(string $databaseName, ?string $tableName = null): Result
     {
         $columns = [];
-        $columns[] = "quote_ident(ic.relname) AS relname";
-        $columns[] = "i.indisunique";
-        $columns[] = "i.indisprimary";
-        $columns[] = "i.indkey";
-        $columns[] = "i.indrelid";
-        $columns[] = "pg_get_expr(indpred, indrelid) AS \"where\"";
+        $columns[] = 'quote_ident(ic.relname) AS relname';
+        $columns[] = 'i.indisunique';
+        $columns[] = 'i.indisprimary';
+        $columns[] = 'i.indkey';
+        $columns[] = 'i.indrelid';
+        $columns[] = 'pg_get_expr(indpred, indrelid) AS "where"';
 
         if (null === $tableName) {
-            $columns[] = "tc.relname AS table_name";
-            $columns[] = "tn.nspname AS schema_name";
+            $columns[] = 'tc.relname AS table_name';
+            $columns[] = 'tn.nspname AS schema_name';
         }
 
-        $conditions = ["c.oid = i.indrelid", "c.relnamespace = n.oid"];
+        $conditions = ['c.oid = i.indrelid', 'c.relnamespace = n.oid'];
         $conditions = array_merge($conditions, $this->buildQueryConditions($tableName));
 
-        $sql = "
+        $sql = '
             SELECT
-                " . implode(",
-                ", $columns) . "
+                ' . implode(',
+                ', $columns) . '
             FROM
                 pg_index AS i
                 JOIN pg_class AS tc ON (
@@ -394,29 +395,29 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                         pg_class c,
                         pg_namespace n
                     WHERE
-                        " . implode("
-                        AND ", $conditions) . "
-                )";
+                        ' . implode('
+                        AND ', $conditions) . '
+                )';
 
         return $this->_conn->executeQuery($sql);
     }
 
     protected function selectForeignKeyColumns(string $databaseName, ?string $tableName = null): Result
     {
-        $columns = ["quote_ident(r.conname) AS conname", "pg_get_constraintdef(r.oid, true) AS condef"];
+        $columns = ['quote_ident(r.conname) AS conname', 'pg_get_constraintdef(r.oid, true) AS condef'];
 
         if (null === $tableName) {
-            $columns[] = "tc.relname AS table_name";
-            $columns[] = "tn.nspname AS schema_name";
+            $columns[] = 'tc.relname AS table_name';
+            $columns[] = 'tn.nspname AS schema_name';
         }
 
-        $conditions = ["n.oid = c.relnamespace"];
+        $conditions = ['n.oid = c.relnamespace'];
         $conditions = array_merge($conditions, $this->buildQueryConditions($tableName));
 
-        $sql = "
+        $sql = '
             SELECT
-                " . implode(",
-                ", $columns) . "
+                ' . implode(',
+                ', $columns) . '
             FROM
                 pg_constraint AS r
                 JOIN pg_class AS tc ON (
@@ -433,8 +434,8 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                         pg_class c,
                         pg_namespace n
                     WHERE
-                        " . implode("
-                        AND ", $conditions) . "
+                        ' . implode('
+                        AND ', $conditions) . "
                 )
                 AND r.contype = 'f'";
 
@@ -456,8 +457,8 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                     n.oid = c.relnamespace
                 )
             WHERE
-                " . implode("
-                AND ", $conditions);
+                " . implode('
+                AND ', $conditions);
 
         return $this->_conn->fetchAllAssociativeIndexed($sql);
     }

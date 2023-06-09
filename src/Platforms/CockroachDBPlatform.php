@@ -6,10 +6,10 @@ namespace DoctrineCockroachDB\Platforms;
 
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
-use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use Doctrine\DBAL\Schema\ForeignKeyConstraint;
 use Doctrine\DBAL\Schema\TableDiff;
 use Doctrine\Deprecations\Deprecation;
+use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 
 class CockroachDBPlatform extends PostgreSQLPlatform
 {
@@ -65,8 +65,8 @@ class CockroachDBPlatform extends PostgreSQLPlatform
     /**
      * DEFERRABLE, DEFERRED and IMMEDIATE are not supported
      *
-     * @link https://github.com/cockroachdb/cockroach/issues/31632
-     * @link https://www.cockroachlabs.com/docs/v23.1/foreign-key#foreign-key-actions
+     * @see https://github.com/cockroachdb/cockroach/issues/31632
+     * @see https://www.cockroachlabs.com/docs/v23.1/foreign-key#foreign-key-actions
      */
     public function getAdvancedForeignKeyOptionsSQL(ForeignKeyConstraint $foreignKey): string
     {

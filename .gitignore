@@ -1,6 +1,19 @@
+###> PhpStorm ###
 .idea
+###< PhpStorm ###
+
+###> Composer ###
 /composer.lock
 /vendor/
+###< Composer ###
+
+###> phpunit ###
 .phpunit
 .phpunit.result.cache
 /phpunit.xml
+###< phpunit ###
+
+###> friendsofphp/php-cs-fixer ###
+/.php-cs-fixer.php
+/.php-cs-fixer.cache
+###> friendsofphp/php-cs-fixer ###
