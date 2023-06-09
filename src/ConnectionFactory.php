@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace DoctrineCockroachDB;
 
-use DoctrineCockroachDB\Driver\CockroachDBDriver;
 use Doctrine\Bundle\DoctrineBundle;
 use Doctrine\Common\EventManager;
 use Doctrine\DBAL\Configuration;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Tools\DsnParser;
+use DoctrineCockroachDB\Driver\CockroachDBDriver;
 
 class ConnectionFactory
 {
