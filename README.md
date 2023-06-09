@@ -44,6 +44,16 @@ doctrine:
         driver: crdb
 ```
 
+### Register the ConnectionFactory
+
+Add the following to your `services.yaml`:
+```yaml
+DoctrineCockroachDB\ConnectionFactory:
+    decorates: doctrine.dbal.connection_factory
+    arguments:
+        $decorated: '@DoctrineCockroachDB\ConnectionFactory.inner'
+```
+
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
