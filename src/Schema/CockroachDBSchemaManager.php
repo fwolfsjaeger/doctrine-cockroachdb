@@ -207,7 +207,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
         }
 
         if (
-            null !== $tableColumn['default']
+            is_string($tableColumn['default'])
             && preg_match("('([^']+)'::)", $tableColumn['default'], $match)
         ) {
             $tableColumn['default'] = $match[1];
