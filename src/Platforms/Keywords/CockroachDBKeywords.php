@@ -11,8 +11,6 @@ use Doctrine\Deprecations\Deprecation;
 class CockroachDBKeywords extends KeywordList
 {
     /**
-     * {@inheritdoc}
-     *
      * @deprecated
      */
     public function getName(): string
@@ -27,7 +25,7 @@ class CockroachDBKeywords extends KeywordList
     }
 
     /**
-     * {@inheritdoc}
+     * {@inheritDoc}
      */
     protected function getKeywords(): array
     {
