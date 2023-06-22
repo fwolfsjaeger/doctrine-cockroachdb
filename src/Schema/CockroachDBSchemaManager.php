@@ -4,18 +4,332 @@ declare(strict_types=1);
 
 namespace DoctrineCockroachDB\Schema;
 
+use Doctrine\DBAL\Exception;
 use Doctrine\DBAL\Result;
+use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\ForeignKeyConstraint;
 use Doctrine\DBAL\Schema\Identifier;
-use Doctrine\DBAL\Schema\PostgreSQLSchemaManager;
 use Doctrine\DBAL\Schema\Sequence;
+use Doctrine\DBAL\Schema\Table;
+use Doctrine\DBAL\Schema\View;
 use Doctrine\DBAL\Types\JsonType;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Deprecations\Deprecation;
+use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 
-class CockroachDBSchemaManager extends PostgreSQLSchemaManager
+/**
+ * CockroachDB Schema Manager.
+ *
+ * @extends AbstractSchemaManager<CockroachDBPlatform>
+ */
+class CockroachDBSchemaManager extends AbstractSchemaManager
 {
+    /** @var string[]|null */
+    private ?array $existingSchemaPaths = null;
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTableNames(): array
+    {
+        return $this->doListTableNames();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTables(): array
+    {
+        return $this->doListTables();
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @deprecated use {@see introspectTable()} instead
+     */
+    public function listTableDetails($name): Table
+    {
+        Deprecation::trigger(
+            'doctrine/dbal',
+            'https://github.com/doctrine/dbal/pull/5595',
+            '%s is deprecated. Use introspectTable() instead.',
+            __METHOD__,
+        );
+
+        return $this->doListTableDetails($name);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTableColumns($table, $database = null): array
+    {
+        return $this->doListTableColumns($table, $database);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTableIndexes($table): array
+    {
+        return $this->doListTableIndexes($table);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listTableForeignKeys($table, $database = null): array
+    {
+        return $this->doListTableForeignKeys($table, $database);
+    }
+
+    /**
+     * Gets all the existing schema names.
+     *
+     * @return string[]
+     * @throws Exception
+     * @deprecated use {@see listSchemaNames()} instead
+     */
+    public function getSchemaNames(): array
+    {
+        Deprecation::trigger(
+            'doctrine/dbal',
+            'https://github.com/doctrine/dbal/issues/4503',
+            'PostgreSQLSchemaManager::getSchemaNames() is deprecated,'
+            . ' use PostgreSQLSchemaManager::listSchemaNames() instead.',
+        );
+
+        return $this->listNamespaceNames();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function listSchemaNames(): array
+    {
+        return $this->_conn->fetchFirstColumn("
+            SELECT
+                schema_name AS nspname
+            FROM
+               information_schema.schemata
+            WHERE
+                schema_name NOT LIKE 'pg\_%'
+                AND schema_name != 'information_schema'
+                AND schema_name != 'crdb_internal'
+        ");
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * @deprecated
+     */
+    public function getSchemaSearchPaths(): array
+    {
+        Deprecation::triggerIfCalledFromOutside(
+            'doctrine/dbal',
+            'https://github.com/doctrine/dbal/pull/4821',
+            'CockroachDBSchemaManager::getSchemaSearchPaths() is deprecated.',
+        );
+
+        $params = $this->_conn->getParams();
+
+        $searchPaths = $this->_conn->fetchOne('SHOW search_path');
+        assert(false !== $searchPaths);
+
+        $schema = explode(',', $searchPaths);
+
+        if (isset($params['user'])) {
+            $schema = str_replace('"$user"', $params['user'], $schema);
+        }
+
+        return array_map('trim', $schema);
+    }
+
+    /**
+     * Gets names of all existing schemas in the current users search path.
+     *
+     * @return string[]
+     * @throws Exception
+     */
+    public function getExistingSchemaSearchPaths(): array
+    {
+        if (null === $this->existingSchemaPaths) {
+            $this->determineExistingSchemaSearchPaths();
+        }
+
+        assert(null !== $this->existingSchemaPaths);
+
+        return $this->existingSchemaPaths;
+    }
+
+    /**
+     * Returns the name of the current schema.
+     *
+     * @return string|null
+     * @throws Exception
+     */
+    protected function getCurrentSchema(): ?string
+    {
+        $schemas = $this->getExistingSchemaSearchPaths();
+
+        return array_shift($schemas);
+    }
+
+    /**
+     * Sets or resets the order of the existing schemas in the current search path of the user.
+     *
+     * @return void
+     * @throws Exception
+     */
+    public function determineExistingSchemaSearchPaths(): void
+    {
+        $names = $this->listSchemaNames();
+        $paths = $this->getSchemaSearchPaths();
+
+        $this->existingSchemaPaths = array_filter($paths, static function ($v) use ($names): bool {
+            return in_array($v, $names, true);
+        });
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function _getPortableTableForeignKeyDefinition($tableForeignKey): ForeignKeyConstraint
+    {
+        $onUpdate = null;
+        $onDelete = null;
+
+        if (
+            preg_match(
+                '(ON UPDATE ([a-zA-Z0-9]+( (NULL|ACTION|DEFAULT))?))',
+                $tableForeignKey['condef'],
+                $match,
+            ) === 1
+        ) {
+            $onUpdate = $match[1];
+        }
+
+        if (
+            preg_match(
+                '(ON DELETE ([a-zA-Z0-9]+( (NULL|ACTION|DEFAULT))?))',
+                $tableForeignKey['condef'],
+                $match,
+            ) === 1
+        ) {
+            $onDelete = $match[1];
+        }
+
+        $result = preg_match('/FOREIGN KEY \((.+)\) REFERENCES (.+)\((.+)\)/', $tableForeignKey['condef'], $values);
+        assert(1 === $result);
+
+        /*
+         * CockroachDB returns identifiers that are keywords with quotes,
+         * we need them later, don't get the idea to trim them here.
+         */
+        $localColumns = array_map('trim', explode(',', $values[1]));
+        $foreignColumns = array_map('trim', explode(',', $values[3]));
+        $foreignTable = $values[2];
+
+        return new ForeignKeyConstraint(
+            $localColumns,
+            $foreignTable,
+            $foreignColumns,
+            $tableForeignKey['conname'],
+            ['onUpdate' => $onUpdate, 'onDelete' => $onDelete],
+        );
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function _getPortableViewDefinition($view): View
+    {
+        return new View($view['schemaname'] . '.' . $view['viewname'], $view['definition']);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function _getPortableTableDefinition($table): string
+    {
+        $currentSchema = $this->getCurrentSchema();
+
+        if ($table['schema_name'] === $currentSchema) {
+            return $table['table_name'];
+        }
+
+        return $table['schema_name'] . '.' . $table['table_name'];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function _getPortableTableIndexesList($tableIndexes, $tableName = null): array
+    {
+        $buffer = [];
+        foreach ($tableIndexes as $row) {
+            $colNumbers = array_map('intval', explode(' ', $row['indkey']));
+            $columnNameSql = sprintf(
+                'SELECT attnum, attname FROM pg_attribute WHERE attrelid=%d AND attnum IN (%s) ORDER BY attnum ASC',
+                $row['indrelid'],
+                implode(', ', $colNumbers),
+            );
+
+            $indexColumns = $this->_conn->fetchAllAssociative($columnNameSql);
+
+            // required for getting the order of the columns right.
+            foreach ($colNumbers as $colNum) {
+                foreach ($indexColumns as $colRow) {
+                    if ($colNum !== $colRow['attnum']) {
+                        continue;
+                    }
+
+                    $buffer[] = [
+                        'key_name' => $row['relname'],
+                        'column_name' => trim($colRow['attname']),
+                        'non_unique' => !$row['indisunique'],
+                        'primary' => $row['indisprimary'],
+                        'where' => $row['where'],
+                    ];
+                }
+            }
+        }
+
+        return parent::_getPortableTableIndexesList($buffer, $tableName);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    protected function _getPortableDatabaseDefinition($database): string
+    {
+        return $database['datname'];
+    }
+
+    /**
+     * {@inheritdoc}
+     *
+     * @deprecated use {@see listSchemaNames()} instead
+     */
+    protected function getPortableNamespaceDefinition(array $namespace): string
+    {
+        Deprecation::triggerIfCalledFromOutside(
+            'doctrine/dbal',
+            'https://github.com/doctrine/dbal/issues/4503',
+            'CockroachDBSchemaManager::getPortableNamespaceDefinition() is deprecated,'
+            . ' use CockroachDBSchemaManager::listSchemaNames() instead.',
+        );
+
+        return $namespace['nspname'];
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     protected function _getPortableSequenceDefinition($sequence): Sequence
     {
         if ('public' !== $sequence['schemaname']) {
@@ -45,29 +359,8 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
     }
 
     /**
-     * CockroachDB puts parentheses around negative numeric default values that need to be stripped eventually.
+     * {@inheritdoc}
      */
-    private function fixNegativeNumericDefaultValue(?string $defaultValue): ?string
-    {
-        if (null !== $defaultValue && str_starts_with($defaultValue, '(')) {
-            return trim($defaultValue, '()');
-        }
-
-        return $defaultValue;
-    }
-
-    /**
-     * Parses a default value expression as given by CockroachDB.
-     */
-    private function parseDefaultExpression(?string $default): ?string
-    {
-        if (null === $default) {
-            return null;
-        }
-
-        return str_replace("''", "'", $default);
-    }
-
     protected function _getPortableTableColumnDefinition($tableColumn): Column
     {
         $tableColumn = array_change_key_case($tableColumn, CASE_LOWER);
@@ -132,7 +425,6 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
             case 'serial4':
             case 'serial8':
                 $autoincrement = true;
-                // intentional fall-through
                 // no break
             case 'smallint':
             case 'int2':
@@ -235,7 +527,8 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                 Deprecation::trigger(
                     'doctrine/dbal',
                     'https://github.com/doctrine/dbal/pull/5049',
-                    '%s not extending %s while being named %s is deprecated',
+                    '%s not extending %s while being named %s is deprecated'
+                    . ' and will lead to jsonb never to being used in 4.0',
                     get_class($column->getType()),
                     JsonType::class,
                     Types::JSON,
@@ -248,23 +541,33 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
         return $column;
     }
 
-    public function listSchemaNames(): array
+    /**
+     * CockroachDB puts parentheses around negative numeric default values that need to be stripped eventually.
+     */
+    private function fixNegativeNumericDefaultValue(?string $defaultValue): ?string
     {
-        return $this->_conn->fetchFirstColumn("
-            SELECT
-                schema_name AS nspname
-            FROM
-               information_schema.schemata
-            WHERE
-                schema_name NOT LIKE 'pg\_%'
-                AND schema_name != 'information_schema'
-                AND schema_name != 'crdb_internal'
-        ");
+        if (null !== $defaultValue && str_starts_with($defaultValue, '(')) {
+            return trim($defaultValue, '()');
+        }
+
+        return $defaultValue;
+    }
+
+    /**
+     * Parses a default value expression as given by CockroachDB.
+     */
+    private function parseDefaultExpression(?string $default): ?string
+    {
+        if (null === $default) {
+            return null;
+        }
+
+        return str_replace("''", "'", $default);
     }
 
     protected function selectTableNames(string $databaseName): Result
     {
-        return $this->_conn->executeQuery("
+        $sql = "
             SELECT
                 quote_ident(table_name) AS table_name,
                 table_schema AS schema_name
@@ -277,29 +580,9 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                 AND table_schema != 'crdb_internal'
                 AND table_name != 'geometry_columns'
                 AND table_name != 'spatial_ref_sys'
-                AND table_type = 'BASE TABLE'
-        ", [$databaseName]);
-    }
+                AND table_type = 'BASE TABLE'";
 
-    protected function buildQueryConditions(?string $tableName): array
-    {
-        $conditions = [];
-
-        if (null !== $tableName) {
-            if (str_contains($tableName, '.')) {
-                [$schemaName, $tableName] = explode('.', $tableName);
-                $conditions[] = 'n.nspname = ' . $this->_platform->quoteStringLiteral($schemaName);
-            } else {
-                $conditions[] = 'n.nspname = ANY(current_schemas(false))';
-            }
-
-            $identifier = new Identifier($tableName);
-            $conditions[] = 'c.relname = ' . $this->_platform->quoteStringLiteral($identifier->getName());
-        }
-
-        $conditions[] = "n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast', 'pg_extension', 'crdb_internal')";
-
-        return $conditions;
+        return $this->_conn->executeQuery($sql, [$databaseName]);
     }
 
     protected function selectTableColumns(string $databaseName, ?string $tableName = null): Result
@@ -326,8 +609,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
 
         $sql = '
             SELECT
-                ' . implode(',
-                ', $columns) . "
+                ' . implode(', ', $columns) . "
             FROM
                 pg_attribute AS a
                 INNER JOIN pg_class AS c ON (
@@ -345,8 +627,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                     AND d.classid = (SELECT oid FROM pg_class WHERE relname = 'pg_class')
                 )
             WHERE
-                " . implode('
-                AND ', $conditions) . '
+                " . implode(' AND ', $conditions) . '
             ORDER BY
                 a.attnum ASC';
 
@@ -373,8 +654,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
 
         $sql = '
             SELECT
-                ' . implode(',
-                ', $columns) . '
+                ' . implode(', ', $columns) . '
             FROM
                 pg_index AS i
                 JOIN pg_class AS tc ON (
@@ -395,8 +675,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                         pg_class c,
                         pg_namespace n
                     WHERE
-                        ' . implode('
-                        AND ', $conditions) . '
+                        ' . implode(' AND ', $conditions) . '
                 )';
 
         return $this->_conn->executeQuery($sql);
@@ -416,8 +695,7 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
 
         $sql = '
             SELECT
-                ' . implode(',
-                ', $columns) . '
+                ' . implode(', ', $columns) . '
             FROM
                 pg_constraint AS r
                 JOIN pg_class AS tc ON (
@@ -434,14 +712,16 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                         pg_class c,
                         pg_namespace n
                     WHERE
-                        ' . implode('
-                        AND ', $conditions) . "
+                        ' . implode(' AND ', $conditions) . "
                 )
                 AND r.contype = 'f'";
 
         return $this->_conn->executeQuery($sql);
     }
 
+    /**
+     * {@inheritDoc}
+     */
     protected function fetchTableOptionsByTable(string $databaseName, ?string $tableName = null): array
     {
         $conditions = ["c.relkind = 'r'"];
@@ -457,9 +737,33 @@ class CockroachDBSchemaManager extends PostgreSQLSchemaManager
                     n.oid = c.relnamespace
                 )
             WHERE
-                " . implode('
-                AND ', $conditions);
+                " . implode(' AND ', $conditions);
 
         return $this->_conn->fetchAllAssociativeIndexed($sql);
+    }
+
+    /**
+     * @param string|null $tableName
+     * @return list<string>
+     */
+    protected function buildQueryConditions(?string $tableName): array
+    {
+        $conditions = [];
+
+        if (null !== $tableName) {
+            if (str_contains($tableName, '.')) {
+                [$schemaName, $tableName] = explode('.', $tableName);
+                $conditions[] = 'n.nspname = ' . $this->_platform->quoteStringLiteral($schemaName);
+            } else {
+                $conditions[] = 'n.nspname = ANY(current_schemas(false))';
+            }
+
+            $identifier = new Identifier($tableName);
+            $conditions[] = 'c.relname = ' . $this->_platform->quoteStringLiteral($identifier->getName());
+        }
+
+        $conditions[] = "n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast', 'pg_extension', 'crdb_internal')";
+
+        return $conditions;
     }
 }
