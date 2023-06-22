@@ -8,29 +8,22 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\DateIntervalUnit;
 use Doctrine\DBAL\Platforms\Keywords\KeywordList;
-use Doctrine\DBAL\Schema\Column;
-use Doctrine\DBAL\Schema\ColumnDiff;
 use Doctrine\DBAL\Schema\ForeignKeyConstraint;
 use Doctrine\DBAL\Schema\Identifier;
 use Doctrine\DBAL\Schema\Index;
 use Doctrine\DBAL\Schema\Sequence;
-use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Schema\TableDiff;
 use Doctrine\DBAL\SQL\Builder\DefaultSelectSQLBuilder;
 use Doctrine\DBAL\SQL\Builder\SelectSQLBuilder;
-use Doctrine\DBAL\Types\BinaryType;
-use Doctrine\DBAL\Types\BlobType;
+use Doctrine\DBAL\TransactionIsolationLevel;
 use Doctrine\DBAL\Types\Types;
-use Doctrine\Deprecations\Deprecation;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use UnexpectedValueException;
 
-use function array_diff;
 use function array_merge;
 use function array_unique;
 use function array_values;
-use function count;
 use function explode;
 use function implode;
 use function in_array;
@@ -76,41 +69,10 @@ class CockroachDBPlatform extends AbstractPlatform
      * with regard to how booleans have to be handled.
      *
      * Enables use of 'true'/'false' or otherwise 1 and 0 instead.
-     *
-     * @param bool $flag
-     * @return void
      */
     public function setUseBooleanTrueFalseStrings(bool $flag): void
     {
-        $this->useBooleanTrueFalseStrings = (bool)$flag;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getSubstringExpression($string, $start, $length = null): string
-    {
-        if (null === $length) {
-            return 'SUBSTRING(' . $string . ' FROM ' . $start . ')';
-        }
-
-        return 'SUBSTRING(' . $string . ' FROM ' . $start . ' FOR ' . $length . ')';
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @deprecated generate dates within the application
-     */
-    public function getNowExpression(): string
-    {
-        Deprecation::trigger(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/pull/4753',
-            'CockroachDBPlatform::getNowExpression() is deprecated. Generate dates within the application.',
-        );
-
-        return 'LOCALTIMESTAMP(0)';
+        $this->useBooleanTrueFalseStrings = $flag;
     }
 
     /**
@@ -124,19 +86,19 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getLocateExpression($str, $substr, $startPos = false): string
+    public function getLocateExpression(string $string, string $substring, ?string $start = null): string
     {
-        if (false !== $startPos) {
-            $str = $this->getSubstringExpression($str, $startPos);
+        if (null !== $start) {
+            $string = $this->getSubstringExpression($string, $start);
 
             return '
                 CASE
-                    WHEN (POSITION(' . $substr . ' IN ' . $str . ') = 0) THEN 0
-                    ELSE (POSITION(' . $substr . ' IN ' . $str . ') + ' . $startPos . ' - 1)
+                    WHEN (POSITION(' . $substring . ' IN ' . $string . ') = 0) THEN 0
+                    ELSE (POSITION(' . $substring . ' IN ' . $string . ') + ' . $start . ' - 1)
                 END';
         }
 
-        return 'POSITION(' . $substr . ' IN ' . $str . ')';
+        return sprintf('POSITION(%s IN %s)', $substring, $string);
     }
 
     /**
@@ -155,7 +117,7 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getDateDiffExpression($date1, $date2): string
+    public function getDateDiffExpression(string $date1, string $date2): string
     {
         return '(DATE(' . $date1 . ') - DATE(' . $date2 . '))';
     }
@@ -183,23 +145,6 @@ class CockroachDBPlatform extends AbstractPlatform
 
     /**
      * {@inheritDoc}
-     *
-     * @deprecated
-     */
-    public function getDefaultSchemaName(): string
-    {
-        Deprecation::trigger(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/pull/5513',
-            '%s is deprecated.',
-            __METHOD__,
-        );
-
-        return 'defaultdb';
-    }
-
-    /**
-     * {@inheritDoc}
      */
     public function supportsIdentityColumns(): bool
     {
@@ -216,60 +161,9 @@ class CockroachDBPlatform extends AbstractPlatform
 
     /**
      * {@inheritDoc}
-     *
-     * @deprecated
-     */
-    public function usesSequenceEmulatedIdentityColumns(): bool
-    {
-        Deprecation::trigger(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/pull/5513',
-            '%s is deprecated.',
-            __METHOD__,
-        );
-
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @deprecated
-     */
-    public function getIdentitySequenceName($tableName, $columnName): string
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/pull/5513',
-            '%s is deprecated.',
-            __METHOD__,
-        );
-
-        return $tableName . '_' . $columnName . '_seq';
-    }
-
-    /**
-     * {@inheritDoc}
      */
     public function supportsCommentOnStatement(): bool
     {
-        return true;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @deprecated
-     */
-    public function hasNativeGuidType(): bool
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/pull/5509',
-            '%s is deprecated.',
-            __METHOD__,
-        );
-
         return true;
     }
 
@@ -288,32 +182,8 @@ class CockroachDBPlatform extends AbstractPlatform
 
     /**
      * {@inheritDoc}
-     *
-     * @deprecated use {@see CockroachDBSchemaManager::listSchemaNames()} instead
      */
-    public function getListNamespacesSQL(): string
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/issues/4503',
-            'CockroachDBPlatform::getListNamespacesSQL() is deprecated,'
-            . ' use CockroachDBSchemaManager::listSchemaNames() instead.',
-        );
-
-        return "
-            SELECT
-                schema_name AS nspname
-            FROM
-                information_schema.schemata
-            WHERE
-                schema_name NOT LIKE 'pg\_%'
-                AND schema_name != 'information_schema'";
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getListSequencesSQL($database): string
+    public function getListSequencesSQL(string $database): string
     {
         return '
             SELECT
@@ -327,27 +197,6 @@ class CockroachDBPlatform extends AbstractPlatform
                 sequence_catalog = ' . $this->quoteStringLiteral($database) . "
                 AND sequence_schema NOT LIKE 'pg\_%'
                 AND sequence_schema != 'information_schema'";
-    }
-
-    /**
-     * @deprecated The SQL used for schema introspection is an implementation detail and should not be relied upon.
-     *
-     * {@inheritDoc}
-     */
-    public function getListTablesSQL(): string
-    {
-        return "
-            SELECT
-                quote_ident(table_name) AS table_name,
-                table_schema AS schema_name
-            FROM
-                information_schema.tables
-            WHERE
-                table_schema NOT LIKE 'pg\_%'
-                AND table_schema != 'information_schema'
-                AND table_name != 'geometry_columns'
-                AND table_name != 'spatial_ref_sys'
-                AND table_type != 'VIEW'";
     }
 
     /**
@@ -367,211 +216,6 @@ class CockroachDBPlatform extends AbstractPlatform
     }
 
     /**
-     * @param string $table
-     * @param string|null $database
-     * @return string
-     * @deprecated the SQL used for schema introspection is an implementation detail and should not be relied upon
-     */
-    public function getListTableForeignKeysSQL($table, ?string $database = null): string
-    {
-        return '
-            SELECT
-                quote_ident(r.conname) AS conname,
-                pg_catalog.pg_get_constraintdef(r.oid, true) AS condef
-            FROM
-                pg_catalog.pg_constraint r
-            WHERE
-                r.conrelid = (
-                    SELECT
-                        c.oid
-                    FROM
-                        pg_catalog.pg_class c,
-                        pg_catalog.pg_namespace n
-                    WHERE
-                        ' . $this->getTableWhereClause($table) . "
-                        AND n.oid = c.relnamespace
-                )
-                AND r.contype = 'f'";
-    }
-
-    /**
-     * @deprecated
-     *
-     * {@inheritDoc}
-     */
-    public function getListTableConstraintsSQL($table): string
-    {
-        $tableIdentifier = new Identifier($table);
-        $tableIdentifier = $this->quoteStringLiteral($tableIdentifier->getName());
-        $query = "
-            SELECT
-                quote_ident(relname) AS relname
-            FROM
-                pg_class
-            WHERE
-                oid IN (
-                    SELECT
-                        indexrelid
-                    FROM
-                        pg_index,
-                        pg_class
-                    WHERE
-                        pg_class.relname = %s
-                        AND pg_class.oid = pg_index.indrelid
-                        AND (indisunique = 't' OR indisprimary = 't')
-                )";
-
-        return sprintf($query, $tableIdentifier);
-    }
-
-    /**
-     * @deprecated the SQL used for schema introspection is an implementation detail and should not be relied upon.
-     *
-     * {@inheritDoc}
-     */
-    public function getListTableIndexesSQL($table, $database = null): string
-    {
-        return '
-            SELECT
-                quote_ident(relname) AS relname,
-                pg_index.indisunique,
-                pg_index.indisprimary,
-                pg_index.indkey,
-                pg_index.indrelid,
-                pg_get_expr(indpred, indrelid) AS where
-            FROM
-                pg_class,
-                pg_index
-            WHERE
-                oid IN (
-                    SELECT
-                        indexrelid
-                    FROM
-                        pg_index si,
-                        pg_class sc,
-                        pg_namespace sn
-                    WHERE
-                        ' . $this->getTableWhereClause($table, 'sc', 'sn') . '
-                        AND sc.oid = si.indrelid
-                        AND sc.relnamespace = sn.oid
-                )
-                AND pg_index.indexrelid = oid';
-    }
-
-    /**
-     * @param string $table
-     * @param string $classAlias
-     * @param string $namespaceAlias
-     * @return string
-     */
-    private function getTableWhereClause(string $table, string $classAlias = 'c', string $namespaceAlias = 'n'): string
-    {
-        $whereClause = $namespaceAlias . '.nspname NOT IN (';
-        $whereClause .= "'pg_catalog', 'information_schema', 'pg_toast', 'pg_extension', 'crdb_internal'";
-        $whereClause .= ') AND ';
-
-        if (str_contains($table, '.')) {
-            [$schema, $table] = explode('.', $table);
-            $schema = $this->quoteStringLiteral($schema);
-        } else {
-            $schema = 'ANY(current_schemas(false))';
-        }
-
-        $tableIdentifier = new Identifier($table);
-        $tableIdentifier = $this->quoteStringLiteral($tableIdentifier->getName());
-
-        return $whereClause . sprintf(
-            '%s.relname = %s AND %s.nspname = %s',
-            $classAlias,
-            $tableIdentifier,
-            $namespaceAlias,
-            $schema,
-        );
-    }
-
-    /**
-     * @deprecated The SQL used for schema introspection is an implementation detail and should not be relied upon.
-     *
-     * {@inheritDoc}
-     */
-    public function getListTableColumnsSQL($table, $database = null): string
-    {
-        return "
-            SELECT
-                a.attnum,
-                quote_ident(a.attname) AS field,
-                t.typname AS type,
-                format_type(a.atttypid, a.atttypmod) AS complete_type,
-                (
-                    SELECT
-                        tc.collcollate
-                    FROM
-                        pg_catalog.pg_collation AS tc
-                    WHERE
-                        tc.oid = a.attcollation
-                ) AS collation,
-                (
-                    SELECT
-                        t1.typname
-                    FROM
-                        pg_catalog.pg_type AS t1
-                    WHERE
-                        t1.oid = t.typbasetype
-                ) AS domain_type,
-                (
-                    SELECT
-                        format_type(t2.typbasetype, t2.typtypmod)
-                    FROM
-                        pg_catalog.pg_type AS t2
-                    WHERE
-                        t2.typtype = 'd'
-                        AND t2.oid = a.atttypid
-                ) AS domain_complete_type,
-                a.attnotnull AS isnotnull,
-                (
-                    SELECT
-                        't'
-                    FROM
-                        pg_index
-                    WHERE
-                        c.oid = pg_index.indrelid
-                        AND pg_index.indkey[0] = a.attnum
-                        AND pg_index.indisprimary = 't'
-                ) AS pri,
-                (
-                    SELECT
-                        pg_get_expr(adbin, adrelid)
-                    FROM
-                        pg_attrdef
-                    WHERE
-                        c.oid = pg_attrdef.adrelid
-                        AND pg_attrdef.adnum=a.attnum
-                ) AS default,
-                (
-                    SELECT
-                        pg_description.description
-                    FROM
-                        pg_description
-                    WHERE
-                        pg_description.objoid = c.oid
-                        AND a.attnum = pg_description.objsubid
-                ) AS comment
-            FROM
-                pg_attribute a,
-                pg_class c,
-                pg_type t,
-                pg_namespace n
-            WHERE
-                " . $this->getTableWhereClause($table, 'c', 'n') . '
-                AND a.attnum > 0
-                AND a.attrelid = c.oid
-                AND a.atttypid = t.oid
-                AND n.oid = c.relnamespace
-            ORDER BY
-                a.attnum';
-    }
-
-    /**
      * DEFERRABLE, DEFERRED and IMMEDIATE are not supported by CockroachDB
      *
      * {@inheritDoc}
@@ -587,13 +231,7 @@ class CockroachDBPlatform extends AbstractPlatform
             $query .= ' MATCH ' . $foreignKey->getOption('match');
         }
 
-        if ($foreignKey->hasOption('onUpdate')) {
-            $query .= ' ON UPDATE ' . $this->getForeignKeyReferentialActionSQL($foreignKey->getOption('onUpdate'));
-        }
-
-        if ($foreignKey->hasOption('onDelete')) {
-            $query .= ' ON DELETE ' . $this->getForeignKeyReferentialActionSQL($foreignKey->getOption('onDelete'));
-        }
+        $query .= parent::getAdvancedForeignKeyOptionsSQL($foreignKey);
 
         return $query;
     }
@@ -606,23 +244,20 @@ class CockroachDBPlatform extends AbstractPlatform
         $sql = [];
         $commentsSQL = [];
         $columnSql = [];
-        $table = $diff->getOldTable() ?? $diff->getName($this);
+        $table = $diff->getOldTable();
         $tableNameSQL = $table->getQuotedName($this);
 
         foreach ($diff->getAddedColumns() as $addedColumn) {
-            if ($this->onSchemaAlterTableAddColumn($addedColumn, $diff, $columnSql)) {
-                continue;
-            }
-
             $query = 'ADD ' . $this->getColumnDeclarationSQL(
                 $addedColumn->getQuotedName($this),
                 $addedColumn->toArray(),
             );
 
             $sql[] = 'ALTER TABLE ' . $tableNameSQL . ' ' . $query;
-            $comment = $this->getColumnComment($addedColumn);
 
-            if (null === $comment || '' === $comment) {
+            $comment = $addedColumn->getComment();
+
+            if ('' === $comment) {
                 continue;
             }
 
@@ -634,24 +269,12 @@ class CockroachDBPlatform extends AbstractPlatform
         }
 
         foreach ($diff->getDroppedColumns() as $droppedColumn) {
-            if ($this->onSchemaAlterTableRemoveColumn($droppedColumn, $diff, $columnSql)) {
-                continue;
-            }
-
             $query = 'DROP ' . $droppedColumn->getQuotedName($this);
             $sql[] = 'ALTER TABLE ' . $tableNameSQL . ' ' . $query;
         }
 
         foreach ($diff->getModifiedColumns() as $columnDiff) {
-            if ($this->onSchemaAlterTableChangeColumn($columnDiff, $diff, $columnSql)) {
-                continue;
-            }
-
-            if ($this->isUnchangedBinaryColumn($columnDiff)) {
-                continue;
-            }
-
-            $oldColumn = $columnDiff->getOldColumn() ?? $columnDiff->getOldColumnName();
+            $oldColumn = $columnDiff->getOldColumn();
             $newColumn = $columnDiff->getNewColumn();
             $oldColumnName = $oldColumn->getQuotedName($this);
 
@@ -688,34 +311,18 @@ class CockroachDBPlatform extends AbstractPlatform
 
             if ($columnDiff->hasAutoIncrementChanged()) {
                 if ($newColumn->getAutoincrement()) {
-                    // add autoincrement
-                    $seqName = $this->getIdentitySequenceName(
-                        $table->getName(),
-                        $oldColumnName,
-                    );
-
-                    $sql[] = 'CREATE SEQUENCE ' . $seqName;
-                    $sql[] = "SELECT setval(
-                        '" . $seqName . "',
-                        (SELECT MAX(" . $oldColumnName . ') FROM ' . $tableNameSQL . ')
-                    )';
-
-                    $query = 'ALTER ' . $oldColumnName . " SET DEFAULT nextval('" . $seqName . "')";
+                    $query = 'ADD GENERATED BY DEFAULT AS IDENTITY';
                 } else {
-                    // Drop autoincrement, but do NOT drop the sequence. It might be re-used by other tables or have
-                    $query = 'ALTER ' . $oldColumnName . ' DROP DEFAULT';
+                    $query = 'DROP IDENTITY';
                 }
 
-                $sql[] = 'ALTER TABLE ' . $tableNameSQL . ' ' . $query;
+                $sql[] = 'ALTER TABLE ' . $tableNameSQL . ' ALTER ' . $oldColumnName . ' ' . $query;
             }
 
-            $oldComment = $this->getOldColumnComment($columnDiff);
-            $newComment = $this->getColumnComment($newColumn);
+            $newComment = $newColumn->getComment();
+            $oldComment = $columnDiff->getOldColumn()->getComment();
 
-            if (
-                $columnDiff->hasCommentChanged()
-                || ($columnDiff->getOldColumn() !== null && $oldComment !== $newComment)
-            ) {
+            if ($oldComment !== $newComment || $columnDiff->hasCommentChanged()) {
                 $commentsSQL[] = $this->getCommentOnColumnSQL(
                     $tableNameSQL,
                     $newColumn->getQuotedName($this),
@@ -733,10 +340,6 @@ class CockroachDBPlatform extends AbstractPlatform
         }
 
         foreach ($diff->getRenamedColumns() as $oldColumnName => $column) {
-            if ($this->onSchemaAlterTableRenameColumn($oldColumnName, $column, $diff, $columnSql)) {
-                continue;
-            }
-
             $oldColumnName = new Identifier($oldColumnName);
 
             $sql[] = 'ALTER TABLE ' . $tableNameSQL
@@ -744,78 +347,19 @@ class CockroachDBPlatform extends AbstractPlatform
                 . ' TO ' . $column->getQuotedName($this);
         }
 
-        $tableSql = [];
-
-        if (!$this->onSchemaAlterTable($diff, $tableSql)) {
-            $sql = array_merge($sql, $commentsSQL);
-
-            $newName = $diff->getNewName();
-
-            if (false !== $newName) {
-                Deprecation::trigger(
-                    'doctrine/dbal',
-                    'https://github.com/doctrine/dbal/pull/5663',
-                    'Generation of "rename table" SQL using %s is deprecated. Use getRenameTableSQL() instead.',
-                    __METHOD__,
-                );
-
-                $sql[] = sprintf(
-                    'ALTER TABLE %s RENAME TO %s',
-                    $tableNameSQL,
-                    $newName->getQuotedName($this),
-                );
-            }
-
-            $sql = array_merge(
-                $this->getPreAlterTableIndexForeignKeySQL($diff),
-                $sql,
-                $this->getPostAlterTableIndexForeignKeySQL($diff),
-            );
-        }
-
-        return array_merge($sql, $tableSql, $columnSql);
-    }
-
-    /**
-     * Checks whether a given column diff is a logically unchanged binary type column.
-     *
-     * Used to determine whether a column alteration for a binary type column can be skipped.
-     * Doctrine's {@see BinaryType} and {@see BlobType} are mapped to the same database column type on this platform
-     * as this platform does not have a native VARBINARY/BINARY column type. Therefor the comparator
-     * might detect differences for binary type columns which do not have to be propagated
-     * to database as there actually is no difference at database level.
-     */
-    private function isUnchangedBinaryColumn(ColumnDiff $columnDiff): bool
-    {
-        $newColumnType = $columnDiff->getNewColumn()->getType();
-
-        if (!$newColumnType instanceof BinaryType && !$newColumnType instanceof BlobType) {
-            return false;
-        }
-
-        $oldColumn = $columnDiff->getOldColumn() instanceof Column ? $columnDiff->getOldColumn() : null;
-
-        if (null !== $oldColumn) {
-            $oldColumnType = $oldColumn->getType();
-
-            if (!$oldColumnType instanceof BinaryType && !$oldColumnType instanceof BlobType) {
-                return false;
-            }
-
-            return count(array_diff($columnDiff->changedProperties, ['type', 'length', 'fixed'])) === 0;
-        }
-
-        if ($columnDiff->hasTypeChanged()) {
-            return false;
-        }
-
-        return count(array_diff($columnDiff->changedProperties, ['length', 'fixed'])) === 0;
+        return array_merge(
+            $this->getPreAlterTableIndexForeignKeySQL($diff),
+            $sql,
+            $commentsSQL,
+            $this->getPostAlterTableIndexForeignKeySQL($diff),
+            $columnSql,
+        );
     }
 
     /**
      * {@inheritDoc}
      */
-    protected function getRenameIndexSQL($oldIndexName, Index $index, $tableName): array
+    protected function getRenameIndexSQL(string $oldIndexName, Index $index, string $tableName): array
     {
         if (str_contains($tableName, '.')) {
             [$schema] = explode('.', $tableName);
@@ -823,23 +367,6 @@ class CockroachDBPlatform extends AbstractPlatform
         }
 
         return ['ALTER INDEX ' . $oldIndexName . ' RENAME TO ' . $index->getQuotedName($this)];
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getCommentOnColumnSQL($tableName, $columnName, $comment): string
-    {
-        $tableNameIdentifier = new Identifier($tableName);
-        $columnNameIdentifier = new Identifier($columnName);
-        $comment = null === $comment ? 'NULL' : $this->quoteStringLiteral($comment);
-
-        return sprintf(
-            'COMMENT ON COLUMN %s.%s IS %s',
-            $tableNameIdentifier->getQuotedName($this),
-            $columnNameIdentifier->getQuotedName($this),
-            $comment,
-        );
     }
 
     /**
@@ -879,15 +406,15 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getDropSequenceSQL($sequence): string
+    public function getDropSequenceSQL(string $name): string
     {
-        return parent::getDropSequenceSQL($sequence) . ' CASCADE';
+        return parent::getDropSequenceSQL($name) . ' CASCADE';
     }
 
     /**
      * {@inheritDoc}
      */
-    public function getDropForeignKeySQL($foreignKey, $table): string
+    public function getDropForeignKeySQL(string $foreignKey, string $table): string
     {
         return $this->getDropConstraintSQL($foreignKey, $table);
     }
@@ -895,38 +422,23 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getDropIndexSQL($index, $table = null): string
+    public function getDropIndexSQL(string $name, string $table): string
     {
-        if (
-            null !== $table
-            && $index instanceof Index
-            && $index->isPrimary()
-        ) {
-            $constraintName = $index->getName() === 'primary' ? $this->tableName($table) . '_pkey' : $index->getName();
+        if ('"primary"' === $name) {
+            $constraintName = $table . '_pkey';
 
             return $this->getDropConstraintSQL($constraintName, $table);
         }
 
-        if ('"primary"' === $index && null !== $table) {
-            $constraintName = $this->tableName($table) . '_pkey';
-
-            return $this->getDropConstraintSQL($constraintName, $table);
-        }
-
-        return parent::getDropIndexSQL($index, $table);
-    }
-
-    private function tableName(null|string|Table $table): string
-    {
-        return $table instanceof Table ? $table->getName() : (string)$table;
+        return parent::getDropIndexSQL($name, $table);
     }
 
     /**
-     * @param Table|string|null $table
+     * {@inheritDoc}
      *
      * @see https://www.cockroachlabs.com/docs/stable/create-table.html
      */
-    protected function _getCreateTableSQL($name, array $columns, array $options = []): array
+    protected function _getCreateTableSQL(string $name, array $columns, array $options = []): array
     {
         $queryFields = $this->getColumnDeclarationListSQL($columns);
 
@@ -996,7 +508,10 @@ class CockroachDBPlatform extends AbstractPlatform
             return $callback(true);
         }
 
-        throw new UnexpectedValueException(sprintf("Unrecognized boolean literal '%s'", $value));
+        throw new UnexpectedValueException(sprintf(
+            'Unrecognized boolean literal, %s given.',
+            $value,
+        ));
     }
 
     /**
@@ -1026,9 +541,9 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      *
-     * Postgres wants boolean values converted to the strings 'true'/'false'.
+     * CockroachDB wants boolean values converted to the strings 'true'/'false'.
      */
-    public function convertBooleans($item): mixed
+    public function convertBooleans(mixed $item): mixed
     {
         if (!$this->useBooleanTrueFalseStrings) {
             return parent::convertBooleans($item);
@@ -1036,7 +551,7 @@ class CockroachDBPlatform extends AbstractPlatform
 
         return $this->doConvertBooleans(
             $item,
-            static function (mixed $value) {
+            static function (mixed $value): string {
                 if (null === $value) {
                     return 'NULL';
                 }
@@ -1049,7 +564,7 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function convertBooleansToDatabaseValue($item): mixed
+    public function convertBooleansToDatabaseValue(mixed $item): mixed
     {
         if (!$this->useBooleanTrueFalseStrings) {
             return parent::convertBooleansToDatabaseValue($item);
@@ -1070,11 +585,11 @@ class CockroachDBPlatform extends AbstractPlatform
      * @return (T is null ? null : bool)
      * @template T
      */
-    public function convertFromBoolean($item): ?bool
+    public function convertFromBoolean(mixed $item): ?bool
     {
         if (
             is_string($item)
-            && in_array(strtolower($item), $this->booleanLiterals['false'], true)
+            && in_array($item, $this->booleanLiterals['false'], true)
         ) {
             return false;
         }
@@ -1082,10 +597,7 @@ class CockroachDBPlatform extends AbstractPlatform
         return parent::convertFromBoolean($item);
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public function getSequenceNextValSQL($sequence): string
+    public function getSequenceNextValSQL(string $sequence): string
     {
         return "SELECT NEXTVAL('" . $sequence . "')";
     }
@@ -1093,7 +605,7 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getSetTransactionIsolationSQL($level): string
+    public function getSetTransactionIsolationSQL(TransactionIsolationLevel $level): string
     {
         return 'SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL '
             . $this->_getTransactionIsolationLevelSQL($level);
@@ -1112,11 +624,9 @@ class CockroachDBPlatform extends AbstractPlatform
      */
     public function getIntegerTypeDeclarationSQL(array $column): string
     {
-        if (!empty($column['autoincrement'])) {
-            return 'SERIAL4';
-        }
+        $type = !empty($column['autoincrement']) ? 'SERIAL4' : 'INT4';
 
-        return 'INT4';
+        return $type . $this->_getCommonIntegerTypeDeclarationSQL($column);
     }
 
     /**
@@ -1124,11 +634,9 @@ class CockroachDBPlatform extends AbstractPlatform
      */
     public function getBigIntTypeDeclarationSQL(array $column): string
     {
-        if (!empty($column['autoincrement'])) {
-            return 'SERIAL8';
-        }
+        $type = !empty($column['autoincrement']) ? 'SERIAL8' : 'INT8';
 
-        return 'INT8';
+        return $type . $this->_getCommonIntegerTypeDeclarationSQL($column);
     }
 
     /**
@@ -1136,11 +644,9 @@ class CockroachDBPlatform extends AbstractPlatform
      */
     public function getSmallIntTypeDeclarationSQL(array $column): string
     {
-        if (!empty($column['autoincrement'])) {
-            return 'SERIAL2';
-        }
+        $type = !empty($column['autoincrement']) ? 'SERIAL2' : 'INT2';
 
-        return 'INT2';
+        return $type . $this->_getCommonIntegerTypeDeclarationSQL($column);
     }
 
     /**
@@ -1188,25 +694,39 @@ class CockroachDBPlatform extends AbstractPlatform
      */
     protected function _getCommonIntegerTypeDeclarationSQL(array $column): string
     {
+        if (!empty($column['autoincrement'])) {
+            return ' GENERATED BY DEFAULT AS IDENTITY';
+        }
+
         return '';
     }
 
     /**
      * {@inheritDoc}
      */
-    protected function getVarcharTypeDeclarationSQLSnippet($length, $fixed): string
+    protected function getVarcharTypeDeclarationSQLSnippet(?int $length): string
     {
-        if ($fixed) {
-            return $length > 0 ? 'CHAR(' . $length . ')' : 'CHAR(255)';
+        $sql = 'VARCHAR';
+
+        if (null !== $length) {
+            $sql .= sprintf('(%d)', $length);
         }
 
-        return $length > 0 ? 'VARCHAR(' . $length . ')' : 'VARCHAR(255)';
+        return $sql;
     }
 
     /**
      * {@inheritDoc}
      */
-    protected function getBinaryTypeDeclarationSQLSnippet($length, $fixed): string
+    protected function getBinaryTypeDeclarationSQLSnippet(?int $length): string
+    {
+        return 'BYTEA';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getVarbinaryTypeDeclarationSQLSnippet(?int $length): string
     {
         return 'BYTEA';
     }
@@ -1222,20 +742,6 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getName(): string
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/issues/4749',
-            'CockroachDBPlatform::getName() is deprecated. Identify platforms by their class.',
-        );
-
-        return 'crdb';
-    }
-
-    /**
-     * {@inheritDoc}
-     */
     public function getDateTimeTzFormatString(): string
     {
         return 'Y-m-d H:i:sO';
@@ -1244,7 +750,7 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getEmptyIdentityInsertSQL($quotedTableName, $quotedIdentifierColumnName): string
+    public function getEmptyIdentityInsertSQL(string $quotedTableName, string $quotedIdentifierColumnName): string
     {
         return 'INSERT INTO '
             . $quotedTableName
@@ -1257,7 +763,7 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getTruncateTableSQL($tableName, $cascade = false): string
+    public function getTruncateTableSQL(string $tableName, bool $cascade = false): string
     {
         $tableIdentifier = new Identifier($tableName);
         $sql = 'TRUNCATE ' . $tableIdentifier->getQuotedName($this);
@@ -1330,87 +836,10 @@ class CockroachDBPlatform extends AbstractPlatform
 
     /**
      * {@inheritDoc}
-     *
-     * @deprecated
      */
-    public function getVarcharMaxLength(): int
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/issues/3263',
-            'CockroachDBPlatform::getVarcharMaxLength() is deprecated.',
-        );
-
-        return 65535;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function getBinaryMaxLength(): int
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/issues/3263',
-            'CockroachDBPlatform::getBinaryMaxLength() is deprecated.',
-        );
-
-        return 0;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @deprecated
-     */
-    public function getBinaryDefaultLength(): int
-    {
-        Deprecation::trigger(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/issues/3263',
-            'Relying on the default binary column length is deprecated, specify the length explicitly.',
-        );
-
-        return 0;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @deprecated
-     */
-    public function hasNativeJsonType(): bool
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/pull/5509',
-            '%s is deprecated.',
-            __METHOD__,
-        );
-
-        return true;
-    }
-
     protected function createReservedKeywordsList(): KeywordList
     {
         return new Keywords\CockroachDBKeywords();
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @deprecated implement {@see createReservedKeywordsList()} instead
-     */
-    protected function getReservedKeywordsClass(): string
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/issues/4510',
-            'PostgreSQLPlatform::getReservedKeywordsClass() is deprecated,'
-            . ' use PostgreSQLPlatform::createReservedKeywordsList() instead.',
-        );
-
-        return Keywords\CockroachDBKeywords::class;
     }
 
     /**
@@ -1424,7 +853,7 @@ class CockroachDBPlatform extends AbstractPlatform
     /**
      * {@inheritDoc}
      */
-    public function getDefaultValueDeclarationSQL($column): string
+    public function getDefaultValueDeclarationSQL(array $column): string
     {
         if (isset($column['autoincrement']) && true === $column['autoincrement']) {
             return '';
@@ -1451,32 +880,6 @@ class CockroachDBPlatform extends AbstractPlatform
         }
 
         return 'JSON';
-    }
-
-    private function getOldColumnComment(ColumnDiff $columnDiff): ?string
-    {
-        $oldColumn = $columnDiff->getOldColumn();
-
-        if (null !== $oldColumn) {
-            return $this->getColumnComment($oldColumn);
-        }
-
-        return null;
-    }
-
-    /**
-     * @deprecated the SQL used for schema introspection is an implementation detail and should not be relied upon
-     */
-    public function getListTableMetadataSQL(string $table, ?string $schema = null): string
-    {
-        if (null !== $schema) {
-            $table = $schema . '.' . $table;
-        }
-
-        return sprintf(
-            'SELECT obj_description(%s::regclass) AS table_comment',
-            $this->quoteStringLiteral($table),
-        );
     }
 
     public function createSchemaManager(Connection $connection): CockroachDBSchemaManager

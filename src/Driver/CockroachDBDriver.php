@@ -4,34 +4,41 @@ declare(strict_types=1);
 
 namespace DoctrineCockroachDB\Driver;
 
-use Doctrine\DBAL;
 use Doctrine\DBAL\Driver\AbstractPostgreSQLDriver;
 use Doctrine\DBAL\Driver\PDO\Connection;
-use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\Deprecations\Deprecation;
-use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
-use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use PDO;
+use PDOException;
+use SensitiveParameter;
 
-class CockroachDBDriver extends AbstractPostgreSQLDriver
+final class CockroachDBDriver extends AbstractPostgreSQLDriver
 {
-    public function connect(array $params): Connection
-    {
+    /**
+     * {@inheritDoc}
+     */
+    public function connect(
+        #[SensitiveParameter]
+        array $params,
+    ): Connection {
         $driverOptions = $params['driverOptions'] ?? [];
 
         if (!empty($params['persistent'])) {
             $driverOptions[PDO::ATTR_PERSISTENT] = true;
         }
 
-        // ensure the database name is set
-        $params['dbname'] = $params['dbname'] ?? $params['default_dbname'] ?? 'defaultdb';
+        $safeParams = $params;
+        unset($safeParams['password'], $safeParams['url']);
 
-        $pdo = new PDO(
-            $this->constructPdoDsn($params),
-            $params['user'] ?? '',
-            $params['password'] ?? '',
-            $driverOptions,
-        );
+        try {
+            $pdo = new PDO(
+                $this->constructPdoDsn($safeParams),
+                $params['user'] ?? '',
+                $params['password'] ?? '',
+                $driverOptions,
+            );
+        } catch (PDOException $exception) {
+            throw Exception::new($exception);
+        }
 
         if (
             !isset($driverOptions[PDO::PGSQL_ATTR_DISABLE_PREPARES])
@@ -54,8 +61,9 @@ class CockroachDBDriver extends AbstractPostgreSQLDriver
     }
 
     /**
+     * Constructs the CockroachDB PDO DSN.
+     *
      * @param array<string, mixed> $params
-     * @return string
      */
     private function constructPdoDsn(array $params): string
     {
@@ -69,7 +77,17 @@ class CockroachDBDriver extends AbstractPostgreSQLDriver
             $dsn .= 'port=' . $params['port'] . ';';
         }
 
-        $dsn .= 'dbname=' . $params['dbname'] . ';';
+        if (isset($params['dbname'])) {
+            $dsn .= 'dbname=' . $params['dbname'] . ';';
+        } elseif (isset($params['default_dbname'])) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/pull/5705',
+                'The "default_dbname" connection parameter is deprecated. Use "dbname" instead.',
+            );
+
+            $dsn .= 'dbname=' . $params['default_dbname'] . ';';
+        }
 
         if (isset($params['sslmode'])) {
             $dsn .= 'sslmode=' . $params['sslmode'] . ';';
@@ -96,35 +114,5 @@ class CockroachDBDriver extends AbstractPostgreSQLDriver
         }
 
         return $dsn;
-    }
-
-    public function getDatabasePlatform(): CockroachDBPlatform
-    {
-        return new CockroachDBPlatform();
-    }
-
-    public function createDatabasePlatformForVersion($version): CockroachDBPlatform
-    {
-        return new CockroachDBPlatform();
-    }
-
-    /**
-     * @deprecated
-     * @see CockroachDBSchemaManager::createSchemaManager()
-     */
-    public function getSchemaManager(
-        DBAL\Connection $conn,
-        AbstractPlatform $platform,
-    ): CockroachDBSchemaManager {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/pull/5458',
-            'CockroachDBPlatform::getSchemaManager() is deprecated.'
-            . ' Use CockroachDBPlatform::createSchemaManager() instead.',
-        );
-
-        assert($platform instanceof CockroachDBPlatform);
-
-        return new CockroachDBSchemaManager($conn, $platform);
     }
 }
