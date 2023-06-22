@@ -14,9 +14,11 @@ use Doctrine\DBAL\Schema\ForeignKeyConstraint;
 use Doctrine\DBAL\Schema\Identifier;
 use Doctrine\DBAL\Schema\Index;
 use Doctrine\DBAL\Schema\Sequence;
+use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Schema\TableDiff;
 use Doctrine\DBAL\Types\BinaryType;
 use Doctrine\DBAL\Types\BlobType;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Deprecations\Deprecation;
 use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use UnexpectedValueException;
@@ -866,6 +868,35 @@ class CockroachDBPlatform extends AbstractPlatform
 
     /**
      * {@inheritDoc}
+     */
+    public function getDropIndexSQL($index, $table = null): string
+    {
+        if (
+            null !== $table
+            && $index instanceof Index
+            && $index->isPrimary()
+        ) {
+            $constraintName = $index->getName() === 'primary' ? $this->tableName($table) . '_pkey' : $index->getName();
+
+            return $this->getDropConstraintSQL($constraintName, $table);
+        }
+
+        if ('"primary"' === $index && null !== $table) {
+            $constraintName = $this->tableName($table) . '_pkey';
+
+            return $this->getDropConstraintSQL($constraintName, $table);
+        }
+
+        return parent::getDropIndexSQL($index, $table);
+    }
+
+    private function tableName(Table|string|null $table): string
+    {
+        return $table instanceof Table ? $table->getName() : (string)$table;
+    }
+
+    /**
+     * @param Table|string|null $table
      *
      * @see https://www.cockroachlabs.com/docs/stable/create-table.html
      */
@@ -1221,48 +1252,48 @@ class CockroachDBPlatform extends AbstractPlatform
     protected function initializeDoctrineTypeMappings(): void
     {
         $this->doctrineTypeMapping = [
-            'bigint' => 'bigint',
-            'bigserial' => 'bigint',
-            'bool' => 'boolean',
-            'boolean' => 'boolean',
-            'bpchar' => 'string',
-            'bytea' => 'blob',
-            'char' => 'string',
-            'date' => 'date',
-            'datetime' => 'datetime',
-            'decimal' => 'decimal',
-            'double' => 'float',
-            'double precision' => 'float',
-            'float' => 'float',
-            'float4' => 'float',
-            'float8' => 'float',
-            'inet' => 'string',
-            'int' => 'integer',
-            'int2' => 'smallint',
-            'int4' => 'integer',
-            'int8' => 'bigint',
-            'integer' => 'integer',
-            'interval' => 'string',
-            'json' => 'json',
-            'jsonb' => 'json',
-            'money' => 'decimal',
-            'numeric' => 'decimal',
-            'serial' => 'integer',
-            'serial4' => 'integer',
-            'serial8' => 'bigint',
-            'real' => 'float',
-            'smallint' => 'smallint',
-            'text' => 'text',
-            'time' => 'time',
-            'timestamp' => 'datetime',
-            'timestamptz' => 'datetimetz',
-            'timetz' => 'time',
-            'tsvector' => 'text',
-            'uuid' => 'guid',
-            'varchar' => 'string',
-            'year' => 'date',
-            '_varchar' => 'string',
-            'int2vector' => 'json',
+            'bigint' => Types::BIGINT,
+            'bigserial' => Types::BIGINT,
+            'bool' => Types::BOOLEAN,
+            'boolean' => Types::BOOLEAN,
+            'bpchar' => Types::STRING,
+            'bytea' => Types::BLOB,
+            'char' => Types::STRING,
+            'date' => Types::DATE_MUTABLE,
+            'datetime' => Types::DATETIME_MUTABLE,
+            'decimal' => Types::DECIMAL,
+            'double' => Types::FLOAT,
+            'double precision' => Types::FLOAT,
+            'float' => Types::FLOAT,
+            'float4' => Types::FLOAT,
+            'float8' => Types::FLOAT,
+            'inet' => Types::STRING,
+            'int' => Types::INTEGER,
+            'int2' => Types::SMALLINT,
+            'int4' => Types::INTEGER,
+            'int8' => Types::BIGINT,
+            'integer' => Types::INTEGER,
+            'interval' => Types::STRING,
+            'json' => Types::JSON,
+            'jsonb' => Types::JSON,
+            'money' => Types::DECIMAL,
+            'numeric' => Types::DECIMAL,
+            'serial' => Types::INTEGER,
+            'serial4' => Types::INTEGER,
+            'serial8' => Types::BIGINT,
+            'real' => Types::FLOAT,
+            'smallint' => Types::SMALLINT,
+            'text' => Types::TEXT,
+            'time' => Types::TIME_MUTABLE,
+            'timestamp' => Types::DATETIME_MUTABLE,
+            'timestamptz' => Types::DATETIMETZ_MUTABLE,
+            'timetz' => Types::TIME_MUTABLE,
+            'tsvector' => Types::TEXT,
+            'uuid' => Types::GUID,
+            'varchar' => Types::STRING,
+            'year' => Types::DATE_MUTABLE,
+            '_varchar' => Types::STRING,
+            'int2vector' => Types::JSON,
         ];
     }
 
