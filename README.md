@@ -71,7 +71,7 @@ cockroach sql --host=127.0.0.1:26257 --insecure
 ```
 
 Create the user & database for the tests:
-```postgres
+```postgresql
 CREATE USER "doctrine_tests";
 CREATE DATABASE doctrine_tests OWNER "doctrine_tests";
 USE doctrine_tests;
