@@ -26,6 +26,7 @@ class DriverTest extends TestCase
 {
     private const PARAMETER_NAMES = [
         'driver',
+        'driver_class',
         'user',
         'password',
         'host',
@@ -89,7 +90,7 @@ class DriverTest extends TestCase
 
     private static function isCockroachDBDriver(): bool
     {
-        return 'crdb' === self::getConnectionParameters()['driver'];
+        return 'DoctrineCockroachDB\Driver\CockroachDBDriver' === self::getConnectionParameters()['driver_class'];
     }
 
     public function testConnectionDisablesPrepares(): void

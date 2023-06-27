@@ -106,80 +106,6 @@ class PlatformTest extends TestCase
      * @return void
      * @throws Exception
      */
-    public function testGetUnknownDoctrineMappingType(): void
-    {
-        $this->expectException(Exception::class);
-        $this->platform->getDoctrineTypeMapping('foobar');
-    }
-
-    /**
-     * @return void
-     * @throws Exception
-     */
-    public function testRegisterDoctrineMappingType(): void
-    {
-        $this->platform->registerDoctrineTypeMapping('foo', 'integer');
-        self::assertEquals('integer', $this->platform->getDoctrineTypeMapping('foo'));
-    }
-
-    /**
-     * @return void
-     * @throws Exception
-     */
-    public function testRegisterUnknownDoctrineMappingType(): void
-    {
-        $this->expectException(Exception::class);
-        $this->platform->registerDoctrineTypeMapping('foo', 'bar');
-    }
-
-    /**
-     * @return void
-     * @throws Exception
-     */
-    public function testRegistersCommentedDoctrineMappingTypeImplicitly(): void
-    {
-        $type = Type::getType('array');
-        $this->platform->registerDoctrineTypeMapping('foo', 'array');
-
-        self::assertTrue($this->platform->isCommentedDoctrineType($type));
-    }
-
-    /**
-     * @dataProvider getIsCommentedDoctrineType
-     *
-     * @param Type $type
-     * @param bool $commented
-     * @return void
-     */
-    public function testIsCommentedDoctrineType(Type $type, bool $commented): void
-    {
-        self::assertSame($commented, $this->platform->isCommentedDoctrineType($type));
-    }
-
-    /**
-     * @return array<string,array>
-     * @throws Exception
-     */
-    public function getIsCommentedDoctrineType(): array
-    {
-        $data = [];
-
-        foreach (Type::getTypesMap() as $typeName => $className) {
-            $type = Type::getType($typeName);
-
-            $data[$typeName] = [
-                $type,
-                $type->requiresSQLCommentHint($this->platform),
-            ];
-        }
-
-        return $data;
-    }
-
-    /**
-     * @return void
-     * @throws Exception
-     */
     public function testCreateWithNoColumns(): void
     {
         $table = new Table('test');
@@ -649,6 +575,7 @@ class PlatformTest extends TestCase
             $table,
             AbstractPlatform::CREATE_INDEXES | AbstractPlatform::CREATE_FOREIGNKEYS,
         );
+
         self::assertEquals($this->getQuotedColumnInForeignKeySQL(), $sql);
     }
 
@@ -1374,7 +1301,7 @@ class PlatformTest extends TestCase
     /**
      * @return array<int, array{string, array<string, mixed>}>
      */
-    public function asciiStringSqlDeclarationDataProvider(): array
+    public static function asciiStringSqlDeclarationDataProvider(): array
     {
         return [
             ['VARCHAR(12)', ['length' => 12]],

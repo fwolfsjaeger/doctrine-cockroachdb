@@ -22,7 +22,8 @@
 
     <php>
         <ini name="error_reporting" value="E_ALL"/>
-        <var name="db_driver" value="crdb"/>
+        <var name="db_driver" value="pdo_pgsql"/>
+        <var name="db_driver_class" value="DoctrineCockroachDB\Driver\CockroachDBDriver"/>
         <var name="db_host" value="localhost"/>
         <var name="db_port" value="26257"/>
         <var name="db_user" value="doctrine_tests"/>

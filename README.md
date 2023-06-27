@@ -5,8 +5,7 @@
 
 # CockroachDB Driver
 
-CockroachDB Driver is a Doctrine DBAL Driver to handle incompatibilities with PostgreSQL. This package is intended to be
-used for Symfony.
+CockroachDB Driver is a Doctrine DBAL Driver to handle incompatibilities with PostgreSQL.
 
 It is based on https://github.com/lapaygroup/doctrine-cockroachdb by Lapay Group.
 
@@ -17,17 +16,6 @@ It is based on https://github.com/lapaygroup/doctrine-cockroachdb by Lapay Group
 - [Windows Setup Guide](https://www.cockroachlabs.com/docs/v23.1/install-cockroachdb-windows)
 
 ## Usage
-
-### Connection configuration example using a DSN
-
-```yaml
-# doctrine.yaml
-doctrine:
-    dbal:
-        url: crdb://<user>@<host>:<port(26257)>/<dbname>?sslmode=verify-full&sslrootcert=<path-to-ca.crt>&sslcert=<path-to-user.crt>&sslkey=<path-to-user.key>
-```
-
-### Alternative: YAML connection configuration example
 
 ```yaml
 # doctrine.yaml
@@ -41,17 +29,8 @@ doctrine:
         sslrootcert: <path-to-ca.crt>
         sslcert: <path-to-user.crt>
         sslkey: <path-to-user.key>
-        driver: crdb
-```
-
-### Register the ConnectionFactory
-
-Add the following to your `services.yaml`:
-```yaml
-DoctrineCockroachDB\ConnectionFactory:
-    decorates: doctrine.dbal.connection_factory
-    arguments:
-        $decorated: '@DoctrineCockroachDB\ConnectionFactory.inner'
+        driver: pdo_pgsql
+        driver_class: DoctrineCockroachDB\Driver\CockroachDBDriver
 ```
 
 ## Unit testing
