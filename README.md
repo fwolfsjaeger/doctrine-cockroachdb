@@ -54,6 +54,33 @@ DoctrineCockroachDB\ConnectionFactory:
         $decorated: '@DoctrineCockroachDB\ConnectionFactory.inner'
 ```
 
+## Unit testing
+Start an insecure single-node instance:
+```sh
+cockroach start-single-node
+  --store='type=mem,size=1GB' \
+  --log='sinks: {stderr: {channels: [DEV]}}' \
+  --listen-addr=127.0.0.1:26257 \
+  --insecure \
+  --accept-sql-without-tls
+```
+
+Connect to CockroachDB:
+```sh
+cockroach sql --host=127.0.0.1:26257 --insecure
+```
+
+Create the user & database for the tests:
+```postgres
+CREATE USER "doctrine_tests";
+CREATE DATABASE doctrine_tests OWNER "doctrine_tests";
+USE doctrine_tests;
+CREATE SCHEMA doctrine_tests AUTHORIZATION "doctrine_tests";
+ALTER DATABASE doctrine_tests SET search_path = doctrine_tests;
+GRANT ALL PRIVILEGES ON DATABASE doctrine_tests TO "doctrine_tests";
+GRANT ALL PRIVILEGES ON SCHEMA doctrine_tests TO "doctrine_tests";
+```
+
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
