@@ -2082,7 +2082,7 @@ class PlatformTest extends TestCase
 
         $sql = $this->platform->getAlterTableSQL($diff);
 
-        $expectedSql = ['DROP INDEX "primary"'];
+        $expectedSql = ['ALTER TABLE mytable DROP CONSTRAINT mytable_pkey'];
 
         self::assertEquals($expectedSql, $sql);
     }
