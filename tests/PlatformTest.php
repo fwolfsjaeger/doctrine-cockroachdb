@@ -2375,7 +2375,7 @@ class PlatformTest extends TestCase
         self::assertNotFalse($tableDiff);
         self::assertSame(
             [
-                'ALTER TABLE "foo" ALTER "bar" TYPE TIMESTAMP(0) WITHOUT TIME ZONE',
+                'ALTER TABLE "foo" ALTER "bar" TYPE TIMESTAMP',
                 'COMMENT ON COLUMN "foo"."bar" IS \'(DC2Type:datetime_immutable)\'',
             ],
             $this->platform->getAlterTableSQL($tableDiff),
