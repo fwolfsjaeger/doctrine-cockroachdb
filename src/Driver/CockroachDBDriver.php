@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace DoctrineCockroachDB\Driver;
 
-use Doctrine\DBAL\Driver\AbstractPostgreSQLDriver;
+use Doctrine\DBAL\Driver;
+use Doctrine\DBAL\Driver\Connection as DriverConnection;
 use Doctrine\DBAL\Driver\PDO\Connection;
+use Doctrine\DBAL\ServerVersionProvider;
 use Doctrine\Deprecations\Deprecation;
+use DoctrineCockroachDB\Driver\API\ExceptionConverter;
+use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use PDO;
 use PDOException;
 use SensitiveParameter;
 
-final class CockroachDBDriver extends AbstractPostgreSQLDriver
+final class CockroachDBDriver implements Driver
 {
     /**
      * {@inheritDoc}
@@ -19,7 +23,7 @@ final class CockroachDBDriver extends AbstractPostgreSQLDriver
     public function connect(
         #[SensitiveParameter]
         array $params,
-    ): Connection {
+    ): DriverConnection {
         $driverOptions = $params['driverOptions'] ?? [];
 
         if (!empty($params['persistent'])) {
@@ -114,5 +118,15 @@ final class CockroachDBDriver extends AbstractPostgreSQLDriver
         }
 
         return $dsn;
+    }
+
+    public function getDatabasePlatform(ServerVersionProvider $versionProvider): CockroachDBPlatform
+    {
+        return new CockroachDBPlatform();
+    }
+
+    public function getExceptionConverter(): ExceptionConverter
+    {
+        return new ExceptionConverter();
     }
 }
