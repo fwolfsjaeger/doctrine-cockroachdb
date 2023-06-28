@@ -7,11 +7,10 @@ namespace DoctrineCockroachDB\Tests;
 use Doctrine\DBAL;
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\API\ExceptionConverter;
-use Doctrine\DBAL\Driver\API\PostgreSQL\ExceptionConverter as PostgreSQLExceptionConverter;
 use Doctrine\DBAL\Driver\Exception as DoctrineDriverException;
 use Doctrine\DBAL\Driver\PDO;
+use DoctrineCockroachDB\Driver\API\ExceptionConverter as CockroachDBExceptionConverter;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
-use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use PHPUnit\Framework\MockObject\Exception as MockException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -74,7 +73,8 @@ class DriverTest extends TestCase
 
     public function testReturnsDatabasePlatform(): void
     {
-        self::assertEquals($this->createPlatform(), $this->driver->getDatabasePlatform());
+        $serverVersionProvider = new DBAL\Connection\StaticServerVersionProvider('1');
+        self::assertEquals($this->createPlatform(), $this->driver->getDatabasePlatform($serverVersionProvider));
     }
 
     /**
@@ -84,26 +84,6 @@ class DriverTest extends TestCase
     protected function getConnectionMock(): DBAL\Connection
     {
         return $this->createMock(DBAL\Connection::class);
-    }
-
-    /**
-     * @throws ReflectionException
-     * @throws MockException
-     */
-    public function testReturnsSchemaManager(): void
-    {
-        $connection = $this->getConnectionMock();
-        $schemaManager = $this->driver->getSchemaManager(
-            conn: $connection,
-            platform: $this->createPlatform(),
-        );
-
-        self::assertEquals($this->createSchemaManager($connection), $schemaManager);
-
-        $re = new ReflectionProperty($schemaManager, '_conn');
-        $re->setAccessible(true);
-
-        self::assertSame($connection, $re->getValue($schemaManager));
     }
 
     public function testReturnsExceptionConverter(): void
@@ -116,16 +96,8 @@ class DriverTest extends TestCase
         return new CockroachDBPlatform();
     }
 
-    protected function createSchemaManager(DBAL\Connection $connection): CockroachDBSchemaManager
-    {
-        return new CockroachDBSchemaManager(
-            $connection,
-            $this->createPlatform(),
-        );
-    }
-
     protected function createExceptionConverter(): ExceptionConverter
     {
-        return new PostgreSQLExceptionConverter();
+        return new CockroachDBExceptionConverter();
     }
 }
