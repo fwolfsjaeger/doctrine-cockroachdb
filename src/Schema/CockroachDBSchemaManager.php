@@ -604,7 +604,7 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
             $columns[] = 'n.nspname AS schema_name';
         }
 
-        $conditions = ['a.attnum > 0', "c.relkind = 'r'", 'd.refobjid IS NULL'];
+        $conditions = ['a.attnum > 0', 'a.attisdropped = false', "c.relkind = 'r'", 'd.refobjid IS NULL'];
         $conditions = array_merge($conditions, $this->buildQueryConditions($tableName));
 
         $sql = '
