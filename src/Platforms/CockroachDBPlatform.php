@@ -16,12 +16,30 @@ use Doctrine\DBAL\Schema\Index;
 use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\DBAL\Schema\TableDiff;
+use Doctrine\DBAL\SQL\Builder\DefaultSelectSQLBuilder;
+use Doctrine\DBAL\SQL\Builder\SelectSQLBuilder;
 use Doctrine\DBAL\Types\BinaryType;
 use Doctrine\DBAL\Types\BlobType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Deprecations\Deprecation;
 use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use UnexpectedValueException;
+
+use function array_diff;
+use function array_merge;
+use function array_unique;
+use function array_values;
+use function count;
+use function explode;
+use function implode;
+use function in_array;
+use function is_array;
+use function is_bool;
+use function is_numeric;
+use function is_string;
+use function sprintf;
+use function strtolower;
+use function trim;
 
 /**
  * Provides the behavior, features and SQL dialect of the CockroachDB platform.
@@ -254,6 +272,11 @@ class CockroachDBPlatform extends AbstractPlatform
         return true;
     }
 
+    public function createSelectSQLBuilder(): SelectSQLBuilder
+    {
+        return new DefaultSelectSQLBuilder($this, 'FOR UPDATE', null);
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -337,7 +360,9 @@ class CockroachDBPlatform extends AbstractPlatform
                 table_schema AS schemaname,
                 view_definition AS definition
             FROM
-                information_schema.views';
+                information_schema.views
+            WHERE
+                view_definition IS NOT NULL';
     }
 
     /**
@@ -890,7 +915,7 @@ class CockroachDBPlatform extends AbstractPlatform
         return parent::getDropIndexSQL($index, $table);
     }
 
-    private function tableName(Table|string|null $table): string
+    private function tableName(null|string|Table $table): string
     {
         return $table instanceof Table ? $table->getName() : (string)$table;
     }
