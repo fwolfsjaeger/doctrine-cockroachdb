@@ -1327,7 +1327,7 @@ class PlatformTest extends TestCase
     {
         $this->backedUpType = Type::getType(Types::STRING);
         self::assertFalse($this->platform->isCommentedDoctrineType($this->backedUpType));
-        $type = new class() extends StringType {
+        $type = new class () extends StringType {
             public function getName(): string
             {
                 return Types::STRING;

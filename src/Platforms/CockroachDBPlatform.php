@@ -22,6 +22,7 @@ use Doctrine\DBAL\Types\BinaryType;
 use Doctrine\DBAL\Types\BlobType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Deprecations\Deprecation;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use UnexpectedValueException;
 
@@ -1245,7 +1246,8 @@ class CockroachDBPlatform extends AbstractPlatform
      */
     public function getEmptyIdentityInsertSQL($quotedTableName, $quotedIdentifierColumnName): string
     {
-        return 'INSERT INTO ' . $quotedTableName . ' (' . $quotedIdentifierColumnName . ') VALUES (DEFAULT)';
+        return 'INSERT INTO ' . $quotedTableName . ' (' . $quotedIdentifierColumnName . ') VALUES (DEFAULT)'
+            . ' RETURNING ' . $quotedIdentifierColumnName;
     }
 
     /**
@@ -1476,5 +1478,13 @@ class CockroachDBPlatform extends AbstractPlatform
     public function createSchemaManager(Connection $connection): CockroachDBSchemaManager
     {
         return new CockroachDBSchemaManager($connection, $this);
+    }
+
+    /**
+     * @param ClassMetadata<object> $classMetadata
+     */
+    public function getInsertPostfix(ClassMetadata $classMetadata): string
+    {
+        return sprintf('RETURNING %s', implode(',', $classMetadata->getIdentifierColumnNames()));
     }
 }
