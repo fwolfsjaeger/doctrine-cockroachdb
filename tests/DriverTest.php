@@ -8,10 +8,7 @@ use Doctrine\DBAL;
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\API\ExceptionConverter;
 use Doctrine\DBAL\Driver\API\PostgreSQL\ExceptionConverter as PostgreSQLExceptionConverter;
-use Doctrine\DBAL\Driver\Connection;
-use Doctrine\DBAL\Driver\Exception;
 use Doctrine\DBAL\Driver\PDO;
-use DoctrineCockroachDB\Driver\CockroachDBDriver;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use PHPUnit\Framework\MockObject\Exception as MockException;
@@ -24,26 +21,7 @@ use ReflectionProperty;
  */
 class DriverTest extends TestCase
 {
-    private const PARAMETER_NAMES = [
-        'driver',
-        'driver_class',
-        'user',
-        'password',
-        'host',
-        'dbname',
-        'memory',
-        'port',
-        'server',
-        'ssl_key',
-        'ssl_cert',
-        'ssl_ca',
-        'ssl_capath',
-        'ssl_cipher',
-        'unix_socket',
-        'path',
-        'charset',
-    ];
-
+    protected ConnectionHelper $connectionHelper;
     protected Driver $driver;
 
     protected function setUp(): void
@@ -54,48 +32,21 @@ class DriverTest extends TestCase
             static::markTestSkipped('Test enabled only when using the CockroachDB driver');
         }
 
-        $this->driver = $this->createDriver();
+        $this->connectionHelper = new ConnectionHelper();
+        $this->driver = $this->connectionHelper->createDriver();
     }
 
-    /**
-     * @return array<string,mixed>
-     */
-    private static function getConnectionParameters(): array
-    {
-        $parameters = [];
-        $prefix = 'db_';
 
-        foreach (self::PARAMETER_NAMES as $parameter) {
-            $prefixedParameter = $prefix . $parameter;
-
-            if (!isset($GLOBALS[$prefixedParameter])) {
-                continue;
-            }
-
-            $parameters[$parameter] = $GLOBALS[$prefixedParameter];
-        }
-
-        foreach ($GLOBALS as $param => $value) {
-            if (!str_starts_with($param, $prefix . 'driver_option_')) {
-                continue;
-            }
-
-            $length = strlen($prefix . 'driver_option_');
-            $driverOption = substr($param, $length);
-            $parameters['driverOptions'][$driverOption] = $value;
-        }
-
-        return $parameters;
-    }
 
     private static function isCockroachDBDriver(): bool
     {
-        return 'DoctrineCockroachDB\Driver\CockroachDBDriver' === self::getConnectionParameters()['driver_class'];
+        return 'DoctrineCockroachDB\Driver\CockroachDBDriver' ===
+            ConnectionHelper::getConnectionParameters()['driver_class'];
     }
 
     public function testConnectionDisablesPrepares(): void
     {
-        $connection = $this->connect();
+        $connection = $this->connectionHelper->connect();
 
         self::assertInstanceOf(PDO\Connection::class, $connection);
         self::assertTrue(
@@ -105,7 +56,7 @@ class DriverTest extends TestCase
 
     public function testConnectionDoesNotDisablePreparesWhenAttributeDefined(): void
     {
-        $connection = $this->connect(
+        $connection = $this->connectionHelper->connect(
             [\PDO::PGSQL_ATTR_DISABLE_PREPARES => false],
         );
 
@@ -150,11 +101,6 @@ class DriverTest extends TestCase
         self::assertEquals($this->createExceptionConverter(), $this->driver->getExceptionConverter());
     }
 
-    protected function createDriver(): DBAL\Driver
-    {
-        return new CockroachDBDriver();
-    }
-
     protected function createPlatform(): CockroachDBPlatform
     {
         return new CockroachDBPlatform();
@@ -171,20 +117,5 @@ class DriverTest extends TestCase
     protected function createExceptionConverter(): ExceptionConverter
     {
         return new PostgreSQLExceptionConverter();
-    }
-
-    /**
-     * @param array<int,mixed> $driverOptions
-     * @returns Connection
-     * @throws Exception
-     */
-    private function connect(array $driverOptions = []): Connection
-    {
-        return $this->createDriver()->connect(
-            array_merge(
-                self::getConnectionParameters(),
-                ['driverOptions' => $driverOptions],
-            ),
-        );
     }
 }
