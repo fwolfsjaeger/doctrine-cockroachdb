@@ -74,6 +74,10 @@ class Entity
 }
 ```
 
+Finally, you should register the `DoctrineCockroachDB\ORM\Listener\AddDefaultToSerialGeneratorListener` and
+`DoctrineCockroachDB\ORM\Listener\RemoveDefaultFromForeignKeysListener` (in that order)
+to get proper default values for the identifiers using SerialGenerator when using Doctrine ORM.
+
 ## Troubleshooting
 #### ERROR:  currval(): could not determine data type of placeholder $1
 This is caused by using the IdentityGenerator as GenerateValue strategy and Doctrine ORM's default `BasicEntityPersister`.
@@ -104,8 +108,8 @@ CREATE SCHEMA doctrine_tests AUTHORIZATION "doctrine_tests";
 ALTER DATABASE doctrine_tests SET search_path = doctrine_tests;
 GRANT ALL PRIVILEGES ON DATABASE doctrine_tests TO "doctrine_tests";
 GRANT ALL PRIVILEGES ON SCHEMA doctrine_tests TO "doctrine_tests";
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA doctrine_tests TO "doctrine_tests";
 CREATE TABLE doctrine_tests.TestEntity (an_identifier SERIAL4 NOT NULL, second_identifier SERIAL4 NOT NULL, a_string_column VARCHAR(255) NOT NULL);
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA doctrine_tests TO "doctrine_tests";
 ```
 
 ## License

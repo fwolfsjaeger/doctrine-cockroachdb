@@ -27,6 +27,10 @@ class TestEntity
     #[ORM\Column(name: 'a_string_column', type: Types::STRING, length: 255)]
     private string $string;
 
+    #[ORM\ManyToOne(targetEntity: TestEntity::class)]
+    #[ORM\JoinColumn(name: 'self_reference', referencedColumnName: 'id')]
+    private int $selfReference;
+
     public function __construct(string $string)
     {
         $this->string = $string;
