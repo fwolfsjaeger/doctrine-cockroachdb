@@ -4,20 +4,13 @@ declare(strict_types=1);
 
 namespace DoctrineCockroachDB\Tests\ORM\Persisters\Entity;
 
-use Doctrine\Common\EventManager;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Configuration;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Mapping\ClassMetadata;
-use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\ORM\Persisters\Entity\BasicEntityPersister;
-use Doctrine\ORM\UnitOfWork;
 use Doctrine\Persistence\Mapping\RuntimeReflectionService;
-use DoctrineCockroachDB\ORM\Id\SerialGenerator;
-use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use DoctrineCockroachDB\Tests\ConnectionHelper;
-use PHPUnit\Framework\MockObject\MockObject;
+use DoctrineCockroachDB\Tests\ORM\EntityManagerMockTrait;
+use DoctrineCockroachDB\Tests\ORM\TestEntityClassMetadataTrait;
 use PHPUnit\Framework\TestCase;
 
 use function array_merge;
@@ -27,9 +20,12 @@ use function array_merge;
  */
 final class BasicEntityPersisterTest extends TestCase
 {
+    use EntityManagerMockTrait;
+    use TestEntityClassMetadataTrait;
+
     public function testGetInsertSQL(): void
     {
-        $classMetadata = $this->getTestClassMetadata();
+        $classMetadata = $this->getTestEntityClassMetadata();
         $entityManagerMock = $this->getEntityManagerMock();
 
         $entityPersister = new BasicEntityPersister(
@@ -62,7 +58,7 @@ final class BasicEntityPersisterTest extends TestCase
 
     public function testExecuteInserts(): void
     {
-        $classMetadata = $this->getTestClassMetadata();
+        $classMetadata = $this->getTestEntityClassMetadata();
         $connectionHelper = new ConnectionHelper();
         $entityManagerMock = $this->getEntityManagerMock(
             new Connection($connectionHelper::getConnectionParameters(), $connectionHelper->createDriver())
@@ -92,65 +88,5 @@ final class BasicEntityPersisterTest extends TestCase
         self::assertNull($testEntity->getId(), 'we should have no ID before insertion');
         $entityPersister->executeInserts();
         self::assertIsInt($testEntity->getId(), 'we should have got ID automatically from database');
-    }
-
-    private function getEntityManagerMock(?Connection $connection = null): MockObject|EntityManagerInterface
-    {
-        $cockroachDBPlatform = new CockroachDBPlatform();
-        if ($connection === null) {
-            $connection = self::createMock(Connection::class);
-            $connection
-                ->expects(self::atLeastOnce())
-                ->method('getDatabasePlatform')
-                ->willReturn($cockroachDBPlatform);
-        }
-
-        $entityManagerMock = self::createMock(EntityManagerInterface::class);
-        $entityManagerMock
-            ->expects(self::atLeastOnce())
-            ->method('getConnection')
-            ->willReturn($connection);
-        $entityManagerMock
-            ->expects(self::atLeastOnce())
-            ->method('getConfiguration')
-            ->willReturn(new Configuration());
-        $entityManagerMock
-            ->expects(self::atLeastOnce())
-            ->method('getMetadataFactory')
-            ->willReturn(new ClassMetadataFactory());
-        $eventManagerMock = self::createMock(EventManager::class);
-        $entityManagerMock
-            ->expects(self::atLeastOnce())
-            ->method('getEventManager')
-            ->willReturn($eventManagerMock);
-        $unitOfWork = new UnitOfWork($entityManagerMock);
-        $entityManagerMock
-            ->expects(self::atLeastOnce())
-            ->method('getUnitOfWork')
-            ->willReturn($unitOfWork);
-
-        return $entityManagerMock;
-    }
-
-    private function getTestClassMetadata(): ClassMetadata
-    {
-        $classMetadata = new ClassMetadata(TestEntity::class);
-        $classMetadata->initializeReflection(new RuntimeReflectionService());
-        $classMetadata->identifier = ['id', 'id2'];
-        $classMetadata->generatorType = ClassMetadata::GENERATOR_TYPE_CUSTOM;
-        $classMetadata->idGenerator = new SerialGenerator();
-        $classMetadata->customGeneratorDefinition = ['class' => SerialGenerator::class];
-        $commonFieldMapping = [
-                'type' => Types::INTEGER,
-                'id' => true,
-                'options' => ['unsigned' => true],
-            ];
-        $classMetadata->fieldMappings = [
-            'id' => array_merge($commonFieldMapping, ['fieldName' => 'id', 'columnName' => 'an_identifier']),
-            'id2' => array_merge($commonFieldMapping, ['fieldName' => 'id', 'columnName' => 'second_identifier']),
-        ];
-        $classMetadata->fieldNames = ['an_identifier' => 'id', 'second_identifier' => 'id2'];
-
-        return $classMetadata;
     }
 }
