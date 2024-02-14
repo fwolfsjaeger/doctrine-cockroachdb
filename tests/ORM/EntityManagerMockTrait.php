@@ -11,16 +11,20 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\ORM\UnitOfWork;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
+use PHPUnit\Framework\MockObject\Exception as MockException;
 use PHPUnit\Framework\MockObject\MockObject;
 
 trait EntityManagerMockTrait
 {
+    /**
+     * @throws MockException
+     */
     private function getEntityManagerMock(
         ?Connection $connection = null,
         int $expectAtLeast = 1,
-    ): MockObject|EntityManagerInterface {
+    ): EntityManagerInterface|MockObject {
         $cockroachDBPlatform = new CockroachDBPlatform();
-        if ($connection === null) {
+        if (null === $connection) {
             $connection = self::createMock(Connection::class);
             $connection
                 ->expects(self::atLeast($expectAtLeast))

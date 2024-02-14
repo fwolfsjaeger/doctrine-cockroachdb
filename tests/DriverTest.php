@@ -8,12 +8,14 @@ use Doctrine\DBAL;
 use Doctrine\DBAL\Driver;
 use Doctrine\DBAL\Driver\API\ExceptionConverter;
 use Doctrine\DBAL\Driver\API\PostgreSQL\ExceptionConverter as PostgreSQLExceptionConverter;
+use Doctrine\DBAL\Driver\Exception as DoctrineDriverException;
 use Doctrine\DBAL\Driver\PDO;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use DoctrineCockroachDB\Schema\CockroachDBSchemaManager;
 use PHPUnit\Framework\MockObject\Exception as MockException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use ReflectionException;
 use ReflectionProperty;
 
 /**
@@ -36,14 +38,15 @@ class DriverTest extends TestCase
         $this->driver = $this->connectionHelper->createDriver();
     }
 
-
-
     private static function isCockroachDBDriver(): bool
     {
         return 'DoctrineCockroachDB\Driver\CockroachDBDriver' ===
             ConnectionHelper::getConnectionParameters()['driver_class'];
     }
 
+    /**
+     * @throws DoctrineDriverException
+     */
     public function testConnectionDisablesPrepares(): void
     {
         $connection = $this->connectionHelper->connect();
@@ -54,6 +57,9 @@ class DriverTest extends TestCase
         );
     }
 
+    /**
+     * @throws DoctrineDriverException
+     */
     public function testConnectionDoesNotDisablePreparesWhenAttributeDefined(): void
     {
         $connection = $this->connectionHelper->connect(
@@ -80,6 +86,10 @@ class DriverTest extends TestCase
         return $this->createMock(DBAL\Connection::class);
     }
 
+    /**
+     * @throws ReflectionException
+     * @throws MockException
+     */
     public function testReturnsSchemaManager(): void
     {
         $connection = $this->getConnectionMock();

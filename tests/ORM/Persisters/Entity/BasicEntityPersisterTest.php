@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace DoctrineCockroachDB\Tests\ORM\Persisters\Entity;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception as DoctrineDbalException;
 use Doctrine\DBAL\Types\Types;
-use Doctrine\ORM\Persisters\Entity\BasicEntityPersister;
+use DoctrineCockroachDB\ORM\Persisters\Entity\BasicEntityPersister;
 use Doctrine\Persistence\Mapping\RuntimeReflectionService;
 use DoctrineCockroachDB\Tests\ConnectionHelper;
 use DoctrineCockroachDB\Tests\ORM\EntityManagerMockTrait;
@@ -30,44 +31,47 @@ final class BasicEntityPersisterTest extends TestCase
 
         $entityPersister = new BasicEntityPersister(
             $entityManagerMock,
-            $classMetadata
+            $classMetadata,
         );
         self::assertSame(
             'INSERT INTO TestEntity (an_identifier) VALUES (DEFAULT) RETURNING an_identifier',
             $entityPersister->getInsertSQL(),
-            'assert that empty columns work and that we return the first identifier'
+            'assert that empty columns work and that we return the first identifier',
         );
 
         $classMetadata->fieldMappings = array_merge(
             $classMetadata->fieldMappings,
             [
                 'string' => ['type' => Types::STRING, 'fieldName' => 'string', 'columnName' => 'a_string_column'],
-            ]
+            ],
         );
         $classMetadata->wakeupReflection(new RuntimeReflectionService());
         $entityPersister = new BasicEntityPersister(
             $entityManagerMock,
-            $classMetadata
+            $classMetadata,
         );
         self::assertSame(
             'INSERT INTO TestEntity (a_string_column) VALUES (?) RETURNING an_identifier,second_identifier',
             $entityPersister->getInsertSQL(),
-            'assert that only non-identifier columns are inserted into and that we return the identifiers'
+            'assert that only non-identifier columns are inserted into and that we return the identifiers',
         );
     }
 
+    /**
+     * @throws DoctrineDbalException
+     */
     public function testExecuteInserts(): void
     {
         $classMetadata = $this->getTestEntityClassMetadata();
         $connectionHelper = new ConnectionHelper();
         $entityManagerMock = $this->getEntityManagerMock(
-            new Connection($connectionHelper::getConnectionParameters(), $connectionHelper->createDriver())
+            new Connection($connectionHelper::getConnectionParameters(), $connectionHelper->createDriver()),
         );
         $classMetadata->fieldMappings = array_merge(
             $classMetadata->fieldMappings,
             [
                 'string' => ['type' => Types::STRING, 'fieldName' => 'string', 'columnName' => 'a_string_column'],
-            ]
+            ],
         );
         $classMetadata->wakeupReflection(new RuntimeReflectionService());
         $entityManagerMock
@@ -78,7 +82,7 @@ final class BasicEntityPersisterTest extends TestCase
 
         $entityPersister = new BasicEntityPersister(
             $entityManagerMock,
-            $classMetadata
+            $classMetadata,
         );
         $testEntity = new TestEntity('test-test');
         $entityPersister->addInsert($testEntity);

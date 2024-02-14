@@ -13,7 +13,7 @@
         "doctrine",
         "doctrine-cockroachdb"
     ],
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "authors": [
         {
             "name": "Florian Wolfsjaeger",
@@ -31,7 +31,7 @@
         "friendsofphp/php-cs-fixer": "^3.41",
         "phpstan/extension-installer": "^1.3",
         "phpstan/phpstan": "^1.10",
-        "phpstan/phpstan-phpunit": "1.4.x-dev",
+        "phpstan/phpstan-phpunit": "1.3",
         "phpstan/phpstan-strict-rules": "^1.5",
         "phpstan/phpstan-symfony": "^1.3",
         "phpunit/phpunit": "^10.1",
@@ -54,8 +54,14 @@
     "autoload-dev": {
         "psr-4": {
             "DoctrineCockroachDB\\Tests\\": "tests"
-        },
-        "exclude-from-classmap": ["vendor/doctrine/orm/src/Persisters/Entity/BasicEntityPersister.php"],
-        "files": ["src/ORM/Persisters/Entity/BasicEntityPersister.php"]
+        }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "DoctrineCockroachDB\\Composer\\PatchDoctrine::overrideBasicEntityPersister"
+        ],
+        "post-update-cmd": [
+            "DoctrineCockroachDB\\Composer\\PatchDoctrine::overrideBasicEntityPersister"
+        ]
     }
 }

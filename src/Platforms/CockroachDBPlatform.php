@@ -1246,7 +1246,11 @@ class CockroachDBPlatform extends AbstractPlatform
      */
     public function getEmptyIdentityInsertSQL($quotedTableName, $quotedIdentifierColumnName): string
     {
-        return 'INSERT INTO ' . $quotedTableName . ' (' . $quotedIdentifierColumnName . ') VALUES (DEFAULT)'
+        return 'INSERT INTO '
+            . $quotedTableName
+            . ' ('
+            . $quotedIdentifierColumnName .
+            ') VALUES (DEFAULT)'
             . ' RETURNING ' . $quotedIdentifierColumnName;
     }
 

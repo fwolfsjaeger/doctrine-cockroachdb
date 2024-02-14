@@ -6,6 +6,7 @@ namespace DoctrineCockroachDB\Tests\ORM;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Mapping\ClassMetadataInfo;
 use Doctrine\Persistence\Mapping\RuntimeReflectionService;
 use DoctrineCockroachDB\ORM\Id\SerialGenerator;
 use DoctrineCockroachDB\Tests\ORM\Persisters\Entity\TestEntity;
@@ -17,7 +18,7 @@ trait TestEntityClassMetadataTrait
         $classMetadata = new ClassMetadata(TestEntity::class);
         $classMetadata->initializeReflection(new RuntimeReflectionService());
         $classMetadata->identifier = ['id', 'id2'];
-        $classMetadata->generatorType = ClassMetadata::GENERATOR_TYPE_CUSTOM;
+        $classMetadata->generatorType = ClassMetadataInfo::GENERATOR_TYPE_CUSTOM;
         $classMetadata->idGenerator = new SerialGenerator();
         $classMetadata->customGeneratorDefinition = ['class' => SerialGenerator::class];
         $commonFieldMapping = [
