@@ -40,7 +40,8 @@ with the custom one provided with this package.
 When using the custom BasicEntityPersister you can use CockroachDB's built in SERIAL generator for primary keys,
 which performs vastly better than Doctrine's recommended SequenceGenerator.
 
-Overriding is done by adding the composer script `DoctrineCockroachDB\\Composer\\PatchDoctrine::overrideBasicEntityPersister` to the `composer.json` script sections `post-install-cmd` and `post-update-cmd`:
+Overriding is done by adding the composer script `DoctrineCockroachDB\\Composer\\PatchDoctrine::overrideBasicEntityPersister`
+to the `composer.json` script sections `post-install-cmd` and `post-update-cmd`:
 
 ```json
 {
@@ -74,6 +75,15 @@ class Entity
     private int $id;
 }
 ```
+
+Finally, you should register the `DoctrineCockroachDB\ORM\Listener\AddDefaultToSerialGeneratorListener` and
+`DoctrineCockroachDB\ORM\Listener\RemoveDefaultFromForeignKeysListener` (in that order)
+to get proper default values for the identifiers using SerialGenerator when using Doctrine ORM.
+
+## Troubleshooting
+#### ERROR: currval(): could not determine data type of placeholder $1
+This is caused by using the IdentityGenerator as GenerateValue strategy and Doctrine ORM's default `BasicEntityPersister`.
+It is solved by using our custom `BasicEntityPersister` and `SerialGenerator`, see above for instructions.
 
 ## Unit testing
 Start an insecure single-node instance:
