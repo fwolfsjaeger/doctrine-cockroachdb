@@ -22,26 +22,25 @@ final class RemoveDefaultFromForeignKeysListener
         foreach ($classMetadata->getAssociationMappings() as $associationMapping) {
             if (
                 !isset(
-                    $associationMapping['isOwningSide'],
-                    $associationMapping['targetEntity'],
-                    $associationMapping['joinColumns'],
-                    $associationMapping['fieldName'],
+                    $associationMapping->targetEntity,
+                    $associationMapping->joinColumns,
+                    $associationMapping->fieldName,
                 )
-                || !is_array($associationMapping['joinColumns'])
+                || !is_array($associationMapping->joinColumns)
             ) {
                 continue;
             }
 
-            if (false === $associationMapping['isOwningSide']) {
+            if (!$associationMapping->isOwningSide()) {
                 return;
             }
 
             $em = $eventArgs->getEntityManager();
-            $targetClassMetaData = $em->getClassMetadata($associationMapping['targetEntity']);
+            $targetClassMetaData = $em->getClassMetadata($associationMapping->targetEntity);
 
-            foreach ($associationMapping['joinColumns'] as &$joinColumn) {
+            foreach ($associationMapping->joinColumns as &$joinColumn) {
                 if (!isset($joinColumn['referencedColumnName'])) {
-                    continue 2;
+                    continue;
                 }
 
                 $referencedFieldName = $targetClassMetaData->getFieldName($joinColumn['referencedColumnName']);
@@ -52,9 +51,9 @@ final class RemoveDefaultFromForeignKeysListener
                     continue;
                 }
 
-                $fieldMapping = $classMetadata->getAssociationMapping($associationMapping['fieldName']);
+                $fieldMapping = $classMetadata->getAssociationMapping($associationMapping->fieldName);
 
-                if (!isset($fieldMapping['options']['default']) && !isset($joinColumn['options']['default'])) {
+                if (!isset($fieldMapping['options']['default']) && isset($joinColumn['options']['default'])) {
                     $joinColumn['options']['default'] = null;
                 }
             }
@@ -62,8 +61,8 @@ final class RemoveDefaultFromForeignKeysListener
             unset($joinColumn);
 
             $classMetadata->setAssociationOverride(
-                $associationMapping['fieldName'],
-                ['joinColumns' => $associationMapping['joinColumns']],
+                $associationMapping->fieldName,
+                ['joinColumns' => $associationMapping->joinColumns],
             );
         }
     }

@@ -8,7 +8,6 @@ use Doctrine\DBAL\Exception as DoctrineDbalException;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityNotFoundException;
 use Doctrine\ORM\Mapping\ClassMetadata;
-use Doctrine\ORM\Mapping\ClassMetadataInfo;
 use Doctrine\ORM\Mapping\MappingException;
 use Doctrine\ORM\Persisters\Entity\BasicEntityPersister as DoctrineBasicEntityPersister;
 use Doctrine\ORM\Utility\PersisterHelper;
@@ -17,7 +16,6 @@ use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 
 use function array_unique;
 use function implode;
-use function in_array;
 
 /**
  * Adds insert support for {@link SerialGenerator}, otherwise identical functionality to {@link BasicEntityPersister}.
@@ -40,7 +38,7 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
             return;
         }
 
-        if (!$this->queuedInserts) {
+        if (empty($this->queuedInserts)) {
             return;
         }
 
@@ -125,26 +123,26 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
 
             if (!isset($this->class->associationMappings[$field])) {
                 $fieldMapping = $this->class->fieldMappings[$field];
-                $columnName = $fieldMapping['columnName'];
+                $columnName = $fieldMapping->columnName;
 
                 // If field is part of primary key and idGenerator is set to SerialGenerator,
                 // we will get data from database instead
                 if (
-                    isset($fieldMapping['id'])
+                    isset($fieldMapping->id, $this->class->idGenerator)
                     && $this->class->idGenerator instanceof SerialGenerator
                 ) {
                     continue;
                 }
 
-                if (!$isInsert && isset($fieldMapping['notUpdatable'])) {
+                if (!$isInsert && isset($fieldMapping->notUpdatable)) {
                     continue;
                 }
 
-                if ($isInsert && isset($fieldMapping['notInsertable'])) {
+                if ($isInsert && isset($fieldMapping->notInsertable)) {
                     continue;
                 }
 
-                $this->columnTypes[$columnName] = $fieldMapping['type'];
+                $this->columnTypes[$columnName] = $fieldMapping->type;
 
                 $result[$this->getOwningTable($field)][$columnName] = $newVal;
 
@@ -154,7 +152,7 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
             $assoc = $this->class->associationMappings[$field];
 
             // Only owning side of x-1 associations can have a FK column.
-            if (!$assoc['isOwningSide'] || !($assoc['type'] & ClassMetadataInfo::TO_ONE)) {
+            if (!$assoc->isToOneOwningSide()) {
                 continue;
             }
 
@@ -197,12 +195,16 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
                 $newValId = $uow->getEntityIdentifier($newVal);
             }
 
-            $targetClass = $this->em->getClassMetadata($assoc['targetEntity']);
+            $targetClass = $this->em->getClassMetadata($assoc->targetEntity);
             $owningTable = $this->getOwningTable($field);
 
-            foreach ($assoc['joinColumns'] as $joinColumn) {
-                $sourceColumn = $joinColumn['name'];
-                $targetColumn = $joinColumn['referencedColumnName'];
+            if (!isset($assoc->joinColumns)) {
+                return $result;
+            }
+
+            foreach ($assoc->joinColumns as $joinColumn) {
+                $sourceColumn = $joinColumn->name;
+                $targetColumn = $joinColumn->referencedColumnName;
                 $quotedColumn = $this->quoteStrategy->getJoinColumnName($joinColumn, $this->class, $this->platform);
 
                 $this->quotedColumns[$sourceColumn] = $quotedColumn;
@@ -212,7 +214,7 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
                     $this->em,
                 );
 
-                $result[$owningTable][$sourceColumn] = $newValId
+                $result[$owningTable][$sourceColumn] = null !== $newValId
                     ? $newValId[$targetClass->getFieldForColumn($targetColumn)]
                     : null;
             }
@@ -225,7 +227,7 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
      * {@inheritDoc}
      * @throws DoctrineDbalException
      */
-    public function getInsertSQL(): ?string
+    public function getInsertSQL(): string
     {
         if (!($this->platform instanceof CockroachDBPlatform)) {
             return parent::getInsertSQL();
@@ -260,7 +262,7 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
                 isset(
                     $this->class->fieldNames[$column],
                     $this->columnTypes[$this->class->fieldNames[$column]],
-                    $this->class->fieldMappings[$this->class->fieldNames[$column]]['requireSQLConversion']
+                    $this->class->fieldMappings[$this->class->fieldNames[$column]]
                 )
             ) {
                 $type = Type::getType($this->columnTypes[$this->class->fieldNames[$column]]);
@@ -307,11 +309,8 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
             if (isset($this->class->associationMappings[$name])) {
                 $assoc = $this->class->associationMappings[$name];
 
-                if (
-                    $assoc['isOwningSide']
-                    && $assoc['type'] & ClassMetadataInfo::TO_ONE
-                ) {
-                    foreach ($assoc['joinColumns'] as $joinColumn) {
+                if (isset($assoc->joinColumns) && $assoc->isToOneOwningSide()) {
+                    foreach ($assoc->joinColumns as $joinColumn) {
                         $columns[] = $this->quoteStrategy
                             ->getJoinColumnName($joinColumn, $this->class, $this->platform);
                     }
@@ -321,15 +320,15 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
             }
 
             if (
-                (!$this->class->isIdGeneratorIdentity() && !$this->class->idGenerator instanceof SerialGenerator)
-                || !in_array($name, $this->class->identifier, true)
+                !in_array($name, $this->class->identifier, true)
+                || (!$this->class->isIdGeneratorIdentity() && !($this->class->idGenerator instanceof SerialGenerator))
             ) {
-                if (isset($this->class->fieldMappings[$name]['notInsertable'])) {
+                if (isset($this->class->fieldMappings[$name]->notInsertable)) {
                     continue;
                 }
 
                 $columns[] = $this->quoteStrategy->getColumnName($name, $this->class, $this->platform);
-                $this->columnTypes[$name] = $this->class->fieldMappings[$name]['type'];
+                $this->columnTypes[$name] = $this->class->fieldMappings[$name]->type;
             }
         }
 

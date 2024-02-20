@@ -60,8 +60,8 @@ final class AddDefaultToSerialGeneratorListenerTest extends TestCase
         foreach ($eventArgs->getClassMetadata()->getFieldNames() as $fieldName) {
             $fieldMapping = $eventArgs->getClassMetadata()->getFieldMapping($fieldName);
             self::assertSame(
-                ['default' => 'unique_rowid()', 'unsigned' => true],
-                $fieldMapping['options'],
+                ['default' => 'unique_rowid()', 'id' => true, 'options' => ['unsigned' => true]],
+                $fieldMapping->options,
                 'field mapping should add default, keeping existing unsigned option',
             );
         }
