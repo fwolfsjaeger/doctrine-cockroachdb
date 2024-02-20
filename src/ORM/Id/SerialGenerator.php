@@ -13,7 +13,7 @@ use Doctrine\ORM\Id\AbstractIdGenerator;
  */
 final class SerialGenerator extends AbstractIdGenerator
 {
-    public function generateId(EntityManagerInterface $em, $entity): mixed
+    public function generateId(EntityManagerInterface $em, null|object $entity): mixed
     {
         throw new BadMethodCallException(
             'CockroachDB doesn\'t support getting last ID/SERIAL value. ' .
@@ -22,7 +22,7 @@ final class SerialGenerator extends AbstractIdGenerator
     }
 
     /**
-     * {@inheritDoc}.
+     * {@inheritDoc}
      */
     public function isPostInsertGenerator(): bool
     {

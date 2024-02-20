@@ -7,6 +7,7 @@ namespace DoctrineCockroachDB\Tests\ORM\Persisters\Entity;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception as DoctrineDbalException;
 use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\Mapping\FieldMapping;
 use DoctrineCockroachDB\ORM\Persisters\Entity\BasicEntityPersister;
 use Doctrine\Persistence\Mapping\RuntimeReflectionService;
 use DoctrineCockroachDB\Tests\ConnectionHelper;
@@ -42,7 +43,7 @@ final class BasicEntityPersisterTest extends TestCase
         $classMetadata->fieldMappings = array_merge(
             $classMetadata->fieldMappings,
             [
-                'string' => ['type' => Types::STRING, 'fieldName' => 'string', 'columnName' => 'a_string_column'],
+                'string' => new FieldMapping(Types::STRING, 'string', 'a_string_column'),
             ],
         );
         $classMetadata->wakeupReflection(new RuntimeReflectionService());
@@ -70,7 +71,7 @@ final class BasicEntityPersisterTest extends TestCase
         $classMetadata->fieldMappings = array_merge(
             $classMetadata->fieldMappings,
             [
-                'string' => ['type' => Types::STRING, 'fieldName' => 'string', 'columnName' => 'a_string_column'],
+                'string' => new FieldMapping(Types::STRING, 'string', 'a_string_column'),
             ],
         );
         $classMetadata->wakeupReflection(new RuntimeReflectionService());

@@ -7,6 +7,7 @@ namespace DoctrineCockroachDB\Tests\ORM\Listener;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Mapping\ManyToOneAssociationMapping;
 use Doctrine\ORM\Mapping\MappingException;
 use DoctrineCockroachDB\ORM\Listener\AddDefaultToSerialGeneratorListener;
 use DoctrineCockroachDB\ORM\Listener\RemoveDefaultFromForeignKeysListener;
@@ -52,28 +53,27 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
         $removeDefaultFromForeignKeysListener = new RemoveDefaultFromForeignKeysListener();
         $classMetadata = $this->getTestEntityClassMetadata();
         $classMetadata->associationMappings = [
-            'selfReference' => [
-                'isOwningSide' => true,
-                'targetEntity' => TestEntity::class,
+            'selfReference' => ManyToOneAssociationMapping::fromMappingArray([
                 'fieldName' => 'selfReference',
+                'sourceEntity' => TestEntity::class,
+                'targetEntity' => TestEntity::class,
                 'type' => Types::INTEGER,
-                'joinColumns' => [
-                    [
-                        'referencedColumnName' => 'id',
-                    ],
-                ],
-            ],
+            ]),
         ];
-        self::assertArrayNotHasKey(
-            'options',
-            $classMetadata->associationMappings['selfReference']['joinColumns'][0],
-        );
         $originalClassMetadata = clone $classMetadata;
 
         $targetClassMetadata = $this->getTestEntityClassMetadata();
         $targetClassMetadata->setAttributeOverride(
             'id',
-            ['options' => ['default' => 'unique_rowid()', 'unsigned' => true]],
+            [
+                'fieldName' => 'id',
+                'columnName' => 'an_identifier',
+                'type' => Types::INTEGER,
+                'options' => [
+                    'default' => 'unique_rowid()',
+                    'unsigned' => true,
+                ],
+            ],
         );
         $entityManagerMock = $this->getEntityManagerMock(expectAtLeast: 0);
         $entityManagerMock
@@ -89,7 +89,7 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
             $eventArgs->getClassMetadata(),
             'with AssociationMappings with default, we should have changed ClassMetadata',
         );
-        $joinColumns = $eventArgs->getClassMetadata()->associationMappings['selfReference']['joinColumns'];
+        $joinColumns = $eventArgs->getClassMetadata()->associationMappings['selfReference']->joinColumns ?? [];
         self::assertArrayHasKey(
             'options',
             $joinColumns[0] ?? null,
