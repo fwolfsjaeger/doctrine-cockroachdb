@@ -167,7 +167,7 @@ return $config->setRules([
     ],
     'types_spaces' => [
         'space' => 'none',
-        'space_multiple_catch' => null,
+        'space_multiple_catch' => 'single',
     ],
     'unary_operator_spaces' => true,
     'whitespace_after_comma_in_array' => true,

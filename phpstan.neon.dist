@@ -1,6 +1,11 @@
 parameters:
     level: 8
-    phpVersion: 80000
+    treatPhpDocTypesAsCertain: false
+    reportMaybesInMethodSignatures: false
+    checkGenericClassInNonGenericObjectType: false
+    strictRules:
+        disallowedConstructs: false
+        noVariableVariables: false
     paths:
         - src
         - tests

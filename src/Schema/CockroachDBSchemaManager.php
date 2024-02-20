@@ -456,66 +456,31 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
      */
     protected function selectTableColumns(string $databaseName, ?string $tableName = null): Result
     {
-        $sql = 'SELECT';
+        $columns = [];
+        $columns[] = 'a.attnum';
+        $columns[] = 'quote_ident(a.attname) AS field';
+        $columns[] = 't.typname AS type';
+        $columns[] = 'format_type(a.atttypid, a.atttypmod) AS complete_type';
+        $columns[] = '(SELECT tc.collcollate FROM pg_catalog.pg_collation tc WHERE tc.oid = a.attcollation) AS collation';
+        $columns[] = '(SELECT t1.typname FROM pg_catalog.pg_type t1 WHERE t1.oid = t.typbasetype) AS domain_type';
+        $columns[] = "(SELECT format_type(t2.typbasetype, t2.typtypmod) FROM pg_catalog.pg_type t2 WHERE t2.typtype = 'd' AND t2.oid = a.atttypid) AS domain_complete_type, a.attnotnull AS isnotnull";
+        $columns[] = "(SELECT 't' FROM pg_index WHERE c.oid = pg_index.indrelid AND pg_index.indkey[0] = a.attnum AND pg_index.indisprimary = 't') AS pri";
+        $columns[] = '(SELECT pg_get_expr(adbin, adrelid) FROM pg_attrdef WHERE c.oid = pg_attrdef.adrelid AND pg_attrdef.adnum=a.attnum) AS default';
+        $columns[] = '(SELECT pg_description.description FROM pg_description WHERE pg_description.objoid = c.oid AND a.attnum = pg_description.objsubid) AS comment';
 
         if (null === $tableName) {
-            $sql .= '
-                c.relname AS table_name,
-                n.nspname AS schema_name,';
+            $columns[] = 'c.relname AS table_name';
+            $columns[] = 'n.nspname AS schema_name';
         }
 
         $conditions = ['a.attnum > 0', 'a.attisdropped = false', "c.relkind = 'r'", 'd.refobjid IS NULL'];
         $conditions = array_merge($conditions, $this->buildQueryConditions($tableName));
 
         $sql = '
-                SELECT
-                    t1.typname
-                FROM
-                    pg_catalog.pg_type AS t1
-                WHERE
-                    t1.oid = t.typbasetype
-            ) AS domain_type,
-            (
-                SELECT
-                    format_type(t2.typbasetype, t2.typtypmod)
-                FROM
-                    pg_catalog.pg_type AS t2
-                WHERE
-                    t2.typtype = 'd'
-                    AND t2.oid = a.atttypid
-            ) AS domain_complete_type,
-            a.attnotnull AS isnotnull,
-            a.attidentity,
-            (
-                SELECT
-                    't'
-                FROM
-                    pg_index
-                WHERE
-                    c.oid = pg_index.indrelid
-                    AND pg_index.indkey[0] = a.attnum
-                    AND pg_index.indisprimary = 't'
-            ) AS pri,
-            (
-                SELECT
-                    pg_get_expr(adbin, adrelid)
-                FROM
-                    pg_attrdef
-                WHERE
-                    c.oid = pg_attrdef.adrelid
-                    AND pg_attrdef.adnum=a.attnum
-            ) AS default,
-            (
-                SELECT
-                    pg_description.description
-                FROM
-                    pg_description
-                WHERE
-                    pg_description.objoid = c.oid
-                    AND a.attnum = pg_description.objsubid
-            ) AS comment
+            SELECT
+                ' . implode(', ', $columns) . "
             FROM
-                pg_attribute a
+                pg_attribute AS a
                 INNER JOIN pg_class AS c ON (
                     c.oid = a.attrelid
                 )
@@ -528,23 +493,12 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
                 LEFT JOIN pg_depend AS d ON (
                     d.objid = c.oid
                     AND d.deptype = 'e'
-                    AND d.classid = (
-                        SELECT
-                            oid
-                        FROM
-                            pg_class
-                        WHERE
-                            relname = 'pg_class'
-                    )
-                )";
-
-        $conditions = array_merge([
-            'a.attnum > 0',
-            "c.relkind = 'r'",
-            'd.refobjid IS NULL',
-        ], $this->buildQueryConditions($tableName));
-
-        $sql .= ' WHERE ' . implode(' AND ', $conditions) . ' ORDER BY a.attnum';
+                    AND d.classid = (SELECT oid FROM pg_class WHERE relname = 'pg_class')
+                )
+            WHERE
+                " . implode(' AND ', $conditions) . '
+            ORDER BY
+                a.attnum ASC';
 
         return $this->connection->executeQuery($sql);
     }

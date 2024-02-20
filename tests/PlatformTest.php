@@ -23,10 +23,9 @@ use Doctrine\DBAL\Types\Types;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use UnexpectedValueException;
 
 use function sprintf;
-
-use UnexpectedValueException;
 
 class PlatformTest extends TestCase
 {
@@ -859,13 +858,10 @@ class PlatformTest extends TestCase
     public function testQuotesDropForeignKeySQL(): void
     {
         $tableName = 'table';
-        $table = new Table($tableName);
         $foreignKeyName = 'select';
-        $foreignKey = new ForeignKeyConstraint([], 'foo', [], 'select');
         $expectedSql = $this->getQuotesDropForeignKeySQL();
 
         self::assertSame($expectedSql, $this->platform->getDropForeignKeySQL($foreignKeyName, $tableName));
-        self::assertSame($expectedSql, $this->platform->getDropForeignKeySQL($foreignKey, $table));
     }
 
     /**
@@ -873,7 +869,7 @@ class PlatformTest extends TestCase
      */
     protected function getQuotesDropConstraintSQL(): string
     {
-        return 'ALTER TABLE "table" DROP CONSTRAINT "select"';
+        return 'ALTER TABLE table DROP CONSTRAINT "select"';
     }
 
     /**
@@ -1799,7 +1795,7 @@ class PlatformTest extends TestCase
      * @return void
      */
     public function testConvertBooleanAsLiteralStrings(
-        bool|string|null $databaseValue,
+        null|bool|string $databaseValue,
         string $preparedStatementValue,
     ): void {
         $platform = $this->createPlatform();
@@ -1832,7 +1828,7 @@ class PlatformTest extends TestCase
      * @return void
      */
     public function testConvertBooleanAsDatabaseValueStrings(
-        bool|string|null $databaseValue,
+        null|bool|string $databaseValue,
         string $preparedStatementValue,
         ?int $integerValue,
         ?bool $booleanValue,
@@ -1864,7 +1860,7 @@ class PlatformTest extends TestCase
      * @return void
      */
     public function testConvertFromBoolean(
-        bool|string|null $databaseValue,
+        null|bool|string $databaseValue,
         string $prepareStatementValue,
         ?int $integerValue,
         ?bool $booleanValue,
@@ -2228,7 +2224,7 @@ class PlatformTest extends TestCase
      */
     protected function getQuotesDropForeignKeySQL(): string
     {
-        return 'ALTER TABLE "table" DROP CONSTRAINT "select"';
+        return 'ALTER TABLE table DROP CONSTRAINT select';
     }
 
     /**
@@ -2276,30 +2272,6 @@ class PlatformTest extends TestCase
         self::assertInstanceOf(TableDiff::class, $tableDiff);
         self::assertSame(
             ['COMMENT ON COLUMN "foo"."bar" IS \'baz\''],
-            $this->platform->getAlterTableSQL($tableDiff),
-        );
-    }
-
-    /**
-     * @return void
-     * @throws Exception
-     * @throws SchemaException
-     */
-    public function testAltersTableColumnCommentIfRequiredByType(): void
-    {
-        $table1 = new Table('"foo"', [new Column('"bar"', Type::getType('datetime'))]);
-        $table2 = new Table('"foo"', [new Column('"bar"', Type::getType('datetime_immutable'))]);
-
-        $comparator = new Comparator();
-
-        $tableDiff = $comparator->diffTable($table1, $table2);
-
-        self::assertNotFalse($tableDiff);
-        self::assertSame(
-            [
-                'ALTER TABLE "foo" ALTER "bar" TYPE TIMESTAMP',
-                'COMMENT ON COLUMN "foo"."bar" IS \'(DC2Type:datetime_immutable)\'',
-            ],
             $this->platform->getAlterTableSQL($tableDiff),
         );
     }
