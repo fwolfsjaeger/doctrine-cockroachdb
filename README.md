@@ -4,10 +4,12 @@
 [![License](http://poser.pugx.org/fwolfsjaeger/doctrine-cockroachdb/license)](https://packagist.org/packages/fwolfsjaeger/doctrine-cockroachdb)
 
 # CockroachDB Driver
-
 CockroachDB Driver is a Doctrine DBAL Driver and ORM patcher to handle incompatibilities with PostgreSQL.
 
-It is based on https://github.com/lapaygroup/doctrine-cockroachdb by Lapay Group.
+## Big Thanks To
+- [Lapay Group](https://github.com/lapaygroup) for their CockroachDB Doctrine driver, which this driver is based on
+- [media.monks](https://github.com/mediamonks) for the idea to patch FQCNs using a composer script
+- [sweoggy](https://github.com/sweoggy) for his contributions to use CockroachDB's built in SERIAL generator
 
 ## CockroachDB Quick Setup Guide
 
