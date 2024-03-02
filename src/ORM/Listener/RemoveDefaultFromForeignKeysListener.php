@@ -39,6 +39,10 @@ final class RemoveDefaultFromForeignKeysListener
             $targetClassMetaData = $em->getClassMetadata($associationMapping->targetEntity);
 
             foreach ($associationMapping->joinColumns as &$joinColumn) {
+                // We need to convert all joinColumns to array, because that is what Doctrine expects for
+                // setAssociationOverride
+                $joinColumn = (array) $joinColumn;
+
                 if (!isset($joinColumn['referencedColumnName'])) {
                     continue;
                 }
