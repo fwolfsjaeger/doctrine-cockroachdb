@@ -24,12 +24,15 @@ final class AddDefaultToSerialGeneratorListener
     {
         $classMetadata = $eventArgs->getClassMetadata();
 
-        if (!$classMetadata->idGenerator instanceof SerialGenerator) {
+        if (
+            !isset($classMetadata->idGenerator)
+            || !($classMetadata->idGenerator instanceof SerialGenerator)
+        ) {
             return;
         }
 
         foreach ($classMetadata->identifier as $identifier) {
-            $fieldMapping = $classMetadata->getFieldMapping($identifier);
+            $fieldMapping = (array)$classMetadata->getFieldMapping($identifier);
             $fieldMapping['options'] = array_merge(
                 ['default' => self::DEFAULT_STATEMENT],
                 $fieldMapping['options'] ?? [],
