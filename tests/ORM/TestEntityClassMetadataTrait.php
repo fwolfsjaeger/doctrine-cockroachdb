@@ -23,10 +23,12 @@ trait TestEntityClassMetadataTrait
         $classMetadata->customGeneratorDefinition = ['class' => SerialGenerator::class];
 
         $idFieldMapping = new FieldMapping(Types::INTEGER, 'id', 'an_identifier');
+        $idFieldMapping->id = true;
         $idFieldMapping->options['id'] = true;
         $idFieldMapping->options['options'] = ['unsigned' => true];
 
         $id2FieldMapping = new FieldMapping(Types::INTEGER, 'id2', 'second_identifier');
+        $id2FieldMapping->id = true;
         $id2FieldMapping->options['id'] = true;
         $id2FieldMapping->options['options'] = ['unsigned' => true];
 
@@ -35,6 +37,7 @@ trait TestEntityClassMetadataTrait
             'id' => $idFieldMapping,
             'id2' => $id2FieldMapping,
         ];
+        $classMetadata->associationMappings = [];
 
         return $classMetadata;
     }
