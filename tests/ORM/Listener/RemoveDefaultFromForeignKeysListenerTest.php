@@ -7,6 +7,7 @@ namespace DoctrineCockroachDB\Tests\ORM\Listener;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Mapping\JoinColumn;
 use Doctrine\ORM\Mapping\ManyToOneAssociationMapping;
 use Doctrine\ORM\Mapping\MappingException;
 use DoctrineCockroachDB\ORM\Listener\AddDefaultToSerialGeneratorListener;
@@ -58,6 +59,14 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
                 'sourceEntity' => TestEntity::class,
                 'targetEntity' => TestEntity::class,
                 'type' => Types::INTEGER,
+                'joinColumns' => [(array) new JoinColumn(
+                    name: 'self_reference',
+                    referencedColumnName: 'id',
+                    options: [
+                        'default' => 'unique_rowid()',
+                        'unsigned' => true,
+                    ]
+                )],
             ]),
         ];
         $originalClassMetadata = clone $classMetadata;
@@ -89,17 +98,15 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
             $eventArgs->getClassMetadata(),
             'with AssociationMappings with default, we should have changed ClassMetadata',
         );
-        $joinColumns = $eventArgs->getClassMetadata()->associationMappings['selfReference']->joinColumns ?? [];
-        self::assertArrayHasKey(
-            'options',
-            $joinColumns[0] ?? null,
+        $joinColumns = $eventArgs->getClassMetadata()->associationMappings['selfReference']->joinColumns;
+        self::assertCount(
+            2,
+            $joinColumns[0]->options,
         );
-        self::assertArrayHasKey(
-            'default',
-            $joinColumns[0]['options'] ?? null,
-        );
+        self::assertTrue($joinColumns[0]->options['unsigned'], 'we should keep other options untouched');
         self::assertNull(
-            $joinColumns[0]['options']['default'] ?? null,
+            $joinColumns[0]->options['default'],
+            'unique_rowid() default should be removed from JoinColumn'
         );
     }
 }
