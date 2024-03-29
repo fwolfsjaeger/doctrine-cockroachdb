@@ -10,7 +10,6 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\JoinColumn;
 use Doctrine\ORM\Mapping\ManyToOneAssociationMapping;
 use Doctrine\ORM\Mapping\MappingException;
-use DoctrineCockroachDB\ORM\Listener\AddDefaultToSerialGeneratorListener;
 use DoctrineCockroachDB\ORM\Listener\RemoveDefaultFromForeignKeysListener;
 use DoctrineCockroachDB\Tests\ORM\EntityManagerMockTrait;
 use DoctrineCockroachDB\Tests\ORM\Persisters\Entity\TestEntity;
@@ -19,7 +18,7 @@ use PHPUnit\Framework\MockObject\Exception as MockObjectException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Tests {@link AddDefaultToSerialGeneratorListener}.
+ * Tests {@link RemoveDefaultFromForeignKeysListener}.
  */
 final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
 {
@@ -66,6 +65,12 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
                         'default' => 'unique_rowid()',
                         'unsigned' => true,
                     ]
+                ), (array) new JoinColumn(
+                    name: 'self_reference_2',
+                    referencedColumnName: 'id',
+                    options: [
+                        'unsigned' => true,
+                    ]
                 )],
             ]),
         ];
@@ -99,14 +104,18 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
             'with AssociationMappings with default, we should have changed ClassMetadata',
         );
         $joinColumns = $eventArgs->getClassMetadata()->associationMappings['selfReference']->joinColumns;
-        self::assertCount(
-            2,
-            $joinColumns[0]->options,
-        );
-        self::assertTrue($joinColumns[0]->options['unsigned'], 'we should keep other options untouched');
-        self::assertNull(
-            $joinColumns[0]->options['default'],
-            'unique_rowid() default should be removed from JoinColumn'
-        );
+        self::assertCount(2, $joinColumns);
+        foreach ($joinColumns as $joinColumn) {
+            self::assertCount(
+                2,
+                $joinColumn->options,
+            );
+            self::assertTrue($joinColumns[0]->options['unsigned'], 'we should keep other options untouched');
+            self::assertNull(
+                $joinColumn->options['default'],
+                'unique_rowid() default should be removed from JoinColumn and no default set should be set to null,' .
+                ' this is to prevent Doctrine from setting unique_rowid() as default later'
+            );
+        }
     }
 }

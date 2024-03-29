@@ -57,7 +57,10 @@ final class RemoveDefaultFromForeignKeysListener
 
                 $fieldMapping = $classMetadata->getAssociationMapping($associationMapping->fieldName);
 
-                if (!isset($fieldMapping['options']['default']) && isset($joinColumn['options']['default'])) {
+                if (
+                    !isset($fieldMapping['options']['default']) && (!isset($joinColumn['options']['default'])) ||
+                    $joinColumn['options']['default'] === AddDefaultToSerialGeneratorListener::DEFAULT_STATEMENT
+                ) {
                     $joinColumn['options']['default'] = null;
                 }
             }
