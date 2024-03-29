@@ -259,7 +259,11 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
             $length = (int)$matches[1];
         }
 
-        $autoincrement = 'd' === $tableColumn['attidentity'];
+        if (array_key_exists('attidentity', $tableColumn)) {
+            $autoincrement = 'd' === $tableColumn['attidentity'];
+        } else {
+            $autoincrement = false;
+        }
         $matches = [];
 
         assert(array_key_exists('default', $tableColumn));
