@@ -58,20 +58,23 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
                 'sourceEntity' => TestEntity::class,
                 'targetEntity' => TestEntity::class,
                 'type' => Types::INTEGER,
-                'joinColumns' => [(array) new JoinColumn(
-                    name: 'self_reference',
-                    referencedColumnName: 'id',
-                    options: [
-                        'default' => 'unique_rowid()',
-                        'unsigned' => true,
-                    ]
-                ), (array) new JoinColumn(
-                    name: 'self_reference_2',
-                    referencedColumnName: 'id',
-                    options: [
-                        'unsigned' => true,
-                    ]
-                )],
+                'joinColumns' => [
+                    (array) new JoinColumn(
+                        name: 'self_reference',
+                        referencedColumnName: 'id',
+                        options: [
+                            'default' => 'unique_rowid()',
+                            'unsigned' => true,
+                        ],
+                    ),
+                    (array) new JoinColumn(
+                        name: 'self_reference_2',
+                        referencedColumnName: 'id',
+                        options: [
+                            'unsigned' => true,
+                        ],
+                    ),
+                ],
             ]),
         ];
         $originalClassMetadata = clone $classMetadata;
@@ -114,7 +117,7 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
             self::assertNull(
                 $joinColumn->options['default'],
                 'unique_rowid() default should be removed from JoinColumn and no default set should be set to null,' .
-                ' this is to prevent Doctrine from setting unique_rowid() as default later'
+                ' this is to prevent Doctrine from setting unique_rowid() as default later',
             );
         }
     }

@@ -18,17 +18,13 @@ use Doctrine\DBAL\Types\Type;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 
 use function array_change_key_case;
-use function array_filter;
 use function array_map;
 use function array_merge;
-use function array_shift;
 use function assert;
 use function explode;
-use function get_class;
 use function implode;
 use function in_array;
 use function preg_match;
-use function preg_replace;
 use function sprintf;
 use function str_replace;
 use function strtolower;
@@ -264,6 +260,7 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
         } else {
             $autoincrement = false;
         }
+
         $matches = [];
 
         assert(array_key_exists('default', $tableColumn));
