@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DoctrineCockroachDB\Platforms;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\InvalidArgumentException;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\DateIntervalUnit;
 use Doctrine\DBAL\Platforms\Keywords\KeywordList;
@@ -840,6 +841,98 @@ class CockroachDBPlatform extends AbstractPlatform
             $columnNameIdentifier->getQuotedName($this),
             $comment,
         );
+    }
+
+    private function getIndexStoringColumns(Index $index): string
+    {
+        if (!$index->hasOption('storing')) {
+            return '';
+        }
+
+        $storing = $index->getOption('storing');
+
+        if (!is_array($storing)) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'Invalidate type for option "storing". Expected "array" got "%s".',
+                    gettype($storing),
+                ),
+            );
+        }
+
+        $keywords = $this->getReservedKeywordsList();
+        $columns = [];
+
+        foreach ($storing as $column) {
+            $columns[] = $keywords->isKeyword($column) ? $this->quoteIdentifier($column) : $column;
+        }
+
+        return ' STORING (' . implode(', ', $columns) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getIndexDeclarationSQL($name, Index $index): string
+    {
+        $columns = $index->getColumns();
+        $identifierName = new Identifier($name);
+
+        if (count($columns) === 0) {
+            throw new InvalidArgumentException('Incomplete definition. "columns" required.');
+        }
+
+        return $this->getCreateIndexSQLFlags($index)
+            . 'INDEX ' . $identifierName->getQuotedName($this)
+            . ' (' . implode(', ', $index->getQuotedColumns($this)) . ')'
+            . $this->getIndexStoringColumns($index)
+            . $this->getPartialIndexSQL($index);
+    }
+
+    /**
+     * Returns the SQL to create an index on a table on this platform.
+     *
+     * @param Table|string $table the name of the table on which the index is to be created
+     *
+     * @return string
+     *
+     * @throws InvalidArgumentException
+     */
+    public function getCreateIndexSQL(Index $index, $table)
+    {
+        if ($table instanceof Table) {
+            Deprecation::trigger(
+                'doctrine/dbal',
+                'https://github.com/doctrine/dbal/issues/4798',
+                'Passing $table as a Table object to %s is deprecated. Pass it as a quoted name instead.',
+                __METHOD__,
+            );
+
+            $table = $table->getQuotedName($this);
+        }
+
+        $name = $index->getQuotedName($this);
+        $columns = $index->getColumns();
+
+        if (count($columns) === 0) {
+            throw new InvalidArgumentException(sprintf(
+                'Incomplete or invalid index definition %s on table %s',
+                $name,
+                $table,
+            ));
+        }
+
+        if ($index->isPrimary()) {
+            return $this->getCreatePrimaryKeySQL($index, $table);
+        }
+
+        return 'CREATE '
+            . $this->getCreateIndexSQLFlags($index)
+            . 'INDEX ' . $name
+            . ' ON ' . $table
+            . ' (' . implode(', ', $index->getQuotedColumns($this)) . ')'
+            . $this->getIndexStoringColumns($index)
+            . $this->getPartialIndexSQL($index);
     }
 
     /**
