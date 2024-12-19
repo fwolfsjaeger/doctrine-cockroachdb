@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DoctrineCockroachDB\Platforms;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\InvalidArgumentException;
 use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\DateIntervalUnit;
 use Doctrine\DBAL\Platforms\Keywords\KeywordList;
@@ -367,6 +368,80 @@ class CockroachDBPlatform extends AbstractPlatform
         }
 
         return ['ALTER INDEX ' . $oldIndexName . ' RENAME TO ' . $index->getQuotedName($this)];
+    }
+
+    private function getIndexStoringColumns(Index $index): string
+    {
+        if (!$index->hasOption('storing')) {
+            return '';
+        }
+
+        $storing = $index->getOption('storing');
+
+        if (!is_array($storing)) {
+            throw new InvalidArgumentException(
+                sprintf(
+                    'Invalidate type for option "storing". Expected "array" got "%s".',
+                    gettype($storing),
+                ),
+            );
+        }
+
+        $keywords = $this->getReservedKeywordsList();
+        $columns = [];
+
+        foreach ($storing as $column) {
+            $columns[] = $keywords->isKeyword($column) ? $this->quoteIdentifier($column) : $column;
+        }
+
+        return ' STORING (' . implode(', ', $columns) . ')';
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getIndexDeclarationSQL(Index $index): string
+    {
+        $columns = $index->getColumns();
+
+        if (count($columns) === 0) {
+            throw new InvalidArgumentException('Incomplete definition. "columns" required.');
+        }
+
+        return $this->getCreateIndexSQLFlags($index)
+            . 'INDEX ' . $index->getQuotedName($this)
+            . ' (' . implode(', ', $index->getQuotedColumns($this)) . ')'
+            . $this->getIndexStoringColumns($index)
+            . $this->getPartialIndexSQL($index);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getCreateIndexSQL(Index $index, string $table): string
+    {
+        $name = $index->getQuotedName($this);
+        $columns = $index->getColumns();
+
+        if (count($columns) === 0) {
+            throw new InvalidArgumentException(sprintf(
+                'Incomplete or invalid index definition %s on table %s',
+                $name,
+                $table,
+            ));
+        }
+
+        if ($index->isPrimary()) {
+            return $this->getCreatePrimaryKeySQL($index, $table);
+        }
+
+        return 'CREATE '
+            . $this->getCreateIndexSQLFlags($index)
+            . 'INDEX ' . $name
+            . ' ON ' . $table
+            . ' (' . implode(', ', $index->getQuotedColumns($this)) . ')'
+            . $this->getIndexStoringColumns($index)
+            . $this->getPartialIndexSQL($index);
     }
 
     /**
