@@ -898,7 +898,7 @@ class CockroachDBPlatform extends AbstractPlatform
      *
      * @throws InvalidArgumentException
      */
-    public function getCreateIndexSQL(Index $index, $table)
+    public function getCreateIndexSQL(Index $index, $table): string
     {
         if ($table instanceof Table) {
             Deprecation::trigger(
@@ -933,6 +933,21 @@ class CockroachDBPlatform extends AbstractPlatform
             . ' (' . implode(', ', $index->getQuotedColumns($this)) . ')'
             . $this->getIndexStoringColumns($index)
             . $this->getPartialIndexSQL($index);
+    }
+
+    protected function getCreateIndexSQLFlags(Index $index): string
+    {
+        if ($index->isUnique()) {
+            return 'UNIQUE ';
+        }
+
+        if ($index->hasOption('index_type')) {
+            $indexType = trim($index->getOption('index_type'), ' ');
+
+            return strtoupper($indexType) . ' ';
+        }
+
+        return '';
     }
 
     /**

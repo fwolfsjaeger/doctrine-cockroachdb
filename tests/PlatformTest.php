@@ -26,10 +26,9 @@ use Doctrine\DBAL\Types\Types;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
+use UnexpectedValueException;
 
 use function sprintf;
-
-use UnexpectedValueException;
 
 class PlatformTest extends TestCase
 {
@@ -168,6 +167,28 @@ class PlatformTest extends TestCase
 
         $sql = $this->platform->getCreateIndexSQL($indexDef, 'test');
         self::assertEquals($this->getGenerateUniqueIndexSql(), $sql);
+    }
+
+    /**
+     * @return void
+     */
+    public function testGeneratesGinIndexCreationSql(): void
+    {
+        $indexDef = new Index(
+            'gin_index',
+            ['json_column'],
+            false,
+            false,
+            [],
+            [
+                'index_type' => 'inverted',
+            ],
+        );
+
+        self::assertEquals(
+            $this->getGenerateGinIndexSql(),
+            $this->platform->getCreateIndexSQL($indexDef, 'gin_index_table'),
+        );
     }
 
     /**
@@ -1327,7 +1348,7 @@ class PlatformTest extends TestCase
     {
         $this->backedUpType = Type::getType(Types::STRING);
         self::assertFalse($this->platform->isCommentedDoctrineType($this->backedUpType));
-        $type = new class () extends StringType {
+        $type = new class() extends StringType {
             public function getName(): string
             {
                 return Types::STRING;
@@ -1701,6 +1722,14 @@ class PlatformTest extends TestCase
     }
 
     /**
+     * @return string
+     */
+    public function getGenerateGinIndexSql(): string
+    {
+        return 'CREATE INVERTED INDEX gin_index ON gin_index_table (json_column)';
+    }
+
+    /**
      * @return void
      * @throws Exception
      */
@@ -1872,7 +1901,7 @@ class PlatformTest extends TestCase
      * @return void
      */
     public function testConvertBooleanAsLiteralStrings(
-        bool|string|null $databaseValue,
+        null|bool|string $databaseValue,
         string $preparedStatementValue,
     ): void {
         $platform = $this->createPlatform();
@@ -1905,7 +1934,7 @@ class PlatformTest extends TestCase
      * @return void
      */
     public function testConvertBooleanAsDatabaseValueStrings(
-        bool|string|null $databaseValue,
+        null|bool|string $databaseValue,
         string $preparedStatementValue,
         ?int $integerValue,
         ?bool $booleanValue,
@@ -1937,7 +1966,7 @@ class PlatformTest extends TestCase
      * @return void
      */
     public function testConvertFromBoolean(
-        bool|string|null $databaseValue,
+        null|bool|string $databaseValue,
         string $prepareStatementValue,
         ?int $integerValue,
         ?bool $booleanValue,
