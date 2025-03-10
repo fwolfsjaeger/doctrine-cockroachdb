@@ -308,7 +308,8 @@ class CockroachDBPlatform extends AbstractPlatform
                 information_schema.schemata
             WHERE
                 schema_name NOT LIKE 'pg\_%'
-                AND schema_name != 'information_schema'";
+                AND schema_name != 'information_schema'
+                AND schema_name != 'crdb_internal'";
     }
 
     /**
@@ -468,7 +469,7 @@ class CockroachDBPlatform extends AbstractPlatform
     private function getTableWhereClause(string $table, string $classAlias = 'c', string $namespaceAlias = 'n'): string
     {
         $whereClause = $namespaceAlias . '.nspname NOT IN (';
-        $whereClause .= "'pg_catalog', 'information_schema', 'pg_toast', 'pg_extension', 'crdb_internal'";
+        $whereClause .= "'pg_catalog', 'information_schema', 'pg_toast', 'pg_extension', 'crdb_internal";
         $whereClause .= ') AND ';
 
         if (str_contains($table, '.')) {
