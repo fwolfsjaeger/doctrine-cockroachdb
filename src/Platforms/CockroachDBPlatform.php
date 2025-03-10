@@ -444,6 +444,21 @@ class CockroachDBPlatform extends AbstractPlatform
             . $this->getPartialIndexSQL($index);
     }
 
+    protected function getCreateIndexSQLFlags(Index $index): string
+    {
+        if ($index->isUnique()) {
+            return 'UNIQUE ';
+        }
+
+        if ($index->hasOption('index_type')) {
+            $indexType = trim($index->getOption('index_type'), ' ');
+
+            return strtoupper($indexType) . ' ';
+        }
+
+        return '';
+    }
+
     /**
      * {@inheritDoc}
      */

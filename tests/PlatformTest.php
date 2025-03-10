@@ -147,6 +147,28 @@ class PlatformTest extends TestCase
     /**
      * @return void
      */
+    public function testGeneratesGinIndexCreationSql(): void
+    {
+        $indexDef = new Index(
+            'gin_index',
+            ['json_column'],
+            false,
+            false,
+            [],
+            [
+                'index_type' => 'inverted',
+            ],
+        );
+
+        self::assertEquals(
+            $this->getGenerateGinIndexSql(),
+            $this->platform->getCreateIndexSQL($indexDef, 'gin_index_table'),
+        );
+    }
+
+    /**
+     * @return void
+     */
     public function testGeneratesPartialIndexesSqlOnlyWhenSupportingPartialIndexes(): void
     {
         $where = 'test IS NULL AND test2 IS NOT NULL';
@@ -1631,6 +1653,14 @@ class PlatformTest extends TestCase
     public function getGenerateUniqueIndexSql(): string
     {
         return 'CREATE UNIQUE INDEX index_name ON test (test, test2)';
+    }
+
+    /**
+     * @return string
+     */
+    public function getGenerateGinIndexSql(): string
+    {
+        return 'CREATE INVERTED INDEX gin_index ON gin_index_table (json_column)';
     }
 
     /**
