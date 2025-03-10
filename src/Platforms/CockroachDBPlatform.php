@@ -197,7 +197,8 @@ class CockroachDBPlatform extends AbstractPlatform
             WHERE
                 sequence_catalog = ' . $this->quoteStringLiteral($database) . "
                 AND sequence_schema NOT LIKE 'pg\_%'
-                AND sequence_schema != 'information_schema'";
+                AND sequence_schema != 'information_schema'
+                AND sequence_schema != 'crdb_internal'";
     }
 
     /**
