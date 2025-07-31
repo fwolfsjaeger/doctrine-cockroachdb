@@ -3,27 +3,14 @@
 namespace DoctrineCockroachDB\Platforms\Keywords;
 
 use Doctrine\DBAL\Platforms\Keywords\KeywordList;
-use Doctrine\Deprecations\Deprecation;
 
 /**
  * Reserved keywords list corresponding to the CockroachDB platform.
+ *
+ * @deprecated
  */
 class CockroachDBKeywords extends KeywordList
 {
-    /**
-     * @deprecated
-     */
-    public function getName(): string
-    {
-        Deprecation::triggerIfCalledFromOutside(
-            'doctrine/dbal',
-            'https://github.com/doctrine/dbal/pull/5433',
-            'CockroachDBKeywords::getName() is deprecated.',
-        );
-
-        return 'CockroachDB';
-    }
-
     /**
      * {@inheritDoc}
      */

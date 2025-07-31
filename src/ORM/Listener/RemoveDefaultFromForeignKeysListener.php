@@ -26,7 +26,6 @@ final class RemoveDefaultFromForeignKeysListener
                     $associationMapping->joinColumns,
                     $associationMapping->fieldName,
                 )
-                || !is_array($associationMapping->joinColumns)
             ) {
                 continue;
             }

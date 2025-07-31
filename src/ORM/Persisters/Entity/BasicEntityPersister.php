@@ -262,7 +262,7 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
                 isset(
                     $this->class->fieldNames[$column],
                     $this->columnTypes[$this->class->fieldNames[$column]],
-                    $this->class->fieldMappings[$this->class->fieldNames[$column]]
+                    $this->class->fieldMappings[$this->class->fieldNames[$column]],
                 )
             ) {
                 $type = Type::getType($this->columnTypes[$this->class->fieldNames[$column]]);

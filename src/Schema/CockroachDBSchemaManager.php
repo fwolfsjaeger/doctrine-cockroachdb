@@ -9,8 +9,6 @@ use Doctrine\DBAL\Result;
 use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Doctrine\DBAL\Schema\Column;
 use Doctrine\DBAL\Schema\ForeignKeyConstraint;
-use Doctrine\DBAL\Schema\Identifier;
-use Doctrine\DBAL\Schema\SchemaConfig;
 use Doctrine\DBAL\Schema\Sequence;
 use Doctrine\DBAL\Schema\View;
 use Doctrine\DBAL\Types\JsonType;
@@ -19,16 +17,17 @@ use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 
 use function array_change_key_case;
 use function array_map;
-use function array_merge;
 use function assert;
+use function count;
 use function explode;
 use function implode;
-use function in_array;
+use function is_string;
 use function preg_match;
 use function sprintf;
+use function str_contains;
 use function str_replace;
-use function strtolower;
-use function trim;
+use function str_starts_with;
+use function strlen;
 
 use const CASE_LOWER;
 
@@ -39,49 +38,42 @@ use const CASE_LOWER;
  */
 class CockroachDBSchemaManager extends AbstractSchemaManager
 {
-    private ?string $currentSchema = null;
-
     /**
      * {@inheritDoc}
      */
     public function listSchemaNames(): array
     {
-        return $this->connection->fetchFirstColumn("
-            SELECT
-                schema_name AS nspname
+        return $this->connection->fetchFirstColumn(
+            <<<'SQL'
+SELECT schema_name
             FROM
                information_schema.schemata
             WHERE
                 schema_name NOT LIKE 'pg\_%'
                 AND schema_name != 'information_schema'
                 AND schema_name != 'crdb_internal'
-        ");
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public function createSchemaConfig(): SchemaConfig
-    {
-        $config = parent::createSchemaConfig();
-
-        $config->setName($this->getCurrentSchema());
-
-        return $config;
+SQL,
+        );
     }
 
     /**
      * Returns the name of the current schema.
      *
+     * @deprecated Use {@link getCurrentSchemaName()} instead
+     *
      * @throws Exception
      */
     protected function getCurrentSchema(): ?string
     {
-        return $this->currentSchema ??= $this->determineCurrentSchema();
+        return $this->getCurrentSchemaName();
     }
 
     /**
      * Determines the name of the current schema.
+     *
+     * @deprecated Use {@link determineCurrentSchemaName()} instead
+     *
+     * @return non-empty-string
      *
      * @throws Exception
      */
@@ -89,8 +81,14 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
     {
         $currentSchema = $this->connection->fetchOne('SELECT current_schema()');
         assert(is_string($currentSchema));
+        assert(strlen($currentSchema) > 0);
 
         return $currentSchema;
+    }
+
+    protected function determineCurrentSchemaName(): ?string
+    {
+        return $this->determineCurrentSchema();
     }
 
     /**
@@ -124,10 +122,6 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
         $result = preg_match('/FOREIGN KEY \((.+)\) REFERENCES (.+)\((.+)\)/', $tableForeignKey['condef'], $values);
         assert(1 === $result);
 
-        /*
-         * CockroachDB returns identifiers that are keywords with quotes,
-         * we need them later, don't get the idea to trim them here.
-         */
         $localColumns = array_map('trim', explode(',', $values[1]));
         $foreignColumns = array_map('trim', explode(',', $values[3]));
         $foreignTable = $values[2];
@@ -137,7 +131,12 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
             $foreignTable,
             $foreignColumns,
             $tableForeignKey['conname'],
-            ['onUpdate' => $onUpdate, 'onDelete' => $onDelete],
+            [
+                'onUpdate' => $onUpdate,
+                'onDelete' => $onDelete,
+                'deferrable' => $tableForeignKey['condeferrable'],
+                'deferred' => $tableForeignKey['condeferred'],
+            ],
         );
     }
 
@@ -150,10 +149,13 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
     }
 
     /**
+     * @deprecated Use the schema name and the unqualified table name separately instead.
+     *
      * {@inheritDoc}
      */
     protected function _getPortableTableDefinition(array $table): string
     {
+        // @phpstan-ignore missingType.checkedException
         $currentSchema = $this->getCurrentSchema();
 
         if ($table['schema_name'] === $currentSchema) {
@@ -166,38 +168,24 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
     /**
      * {@inheritDoc}
      */
-    protected function _getPortableTableIndexesList(array $tableIndexes, string $tableName): array
+    protected function _getPortableTableIndexesList(array $rows, string $tableName): array
     {
-        $buffer = [];
-        foreach ($tableIndexes as $row) {
-            $colNumbers = array_map('intval', explode(' ', $row['indkey']));
-            $columnNameSql = sprintf(
-                'SELECT attnum, attname FROM pg_attribute WHERE attrelid = %d AND attnum IN (%s) ORDER BY attnum ASC',
-                $row['indrelid'],
-                implode(', ', $colNumbers),
-            );
-
-            $indexColumns = $this->connection->fetchAllAssociative($columnNameSql);
-
-            // required for getting the order of the columns right.
-            foreach ($colNumbers as $colNum) {
-                foreach ($indexColumns as $colRow) {
-                    if ($colNum !== $colRow['attnum']) {
-                        continue;
-                    }
-
-                    $buffer[] = [
-                        'key_name' => $row['relname'],
-                        'column_name' => trim($colRow['attname']),
-                        'non_unique' => !$row['indisunique'],
-                        'primary' => $row['indisprimary'],
-                        'where' => $row['where'],
-                    ];
-                }
-            }
-        }
-
-        return parent::_getPortableTableIndexesList($buffer, $tableName);
+        return parent::_getPortableTableIndexesList(
+            array_map(
+                /** @param array<string, mixed> $row */
+                static function (array $row): array {
+                    return [
+                            'key_name' => $row['relname'],
+                            'non_unique' => !$row['indisunique'],
+                            'primary' => $row['indisprimary'],
+                            'where' => $row['where'],
+                        'column_name' => $row['attname'],
+                        ];
+                },
+                $rows,
+            ),
+            $tableName,
+        );
     }
 
     /**
@@ -223,7 +211,9 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
             $sequence['min_value'] = 0;
             $sequence['increment_by'] = 0;
 
-            $data = $this->connection->fetchAssociative('SHOW CREATE ' . $this->platform->quoteIdentifier($sequenceName));
+            $data = $this->connection->fetchAssociative(
+                'SHOW CREATE ' . $this->platform->quoteIdentifier($sequenceName),
+            );
 
             if (!empty($data['create_statement'])) {
                 preg_match_all('/ -?\d+/', $data['create_statement'], $matches);
@@ -247,13 +237,24 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
         $tableColumn = array_change_key_case($tableColumn, CASE_LOWER);
 
         $length = null;
+        $precision = null;
+        $scale = 0;
+        $fixed = false;
+        $jsonb = false;
+
+        $dbType = $tableColumn['type'];
 
         if (
-            preg_match('/\((\d*)\)/', $tableColumn['complete_type'], $matches) === 1
-            && in_array(strtolower($tableColumn['type']), ['varchar', 'bpchar'], true)
+            null !== $tableColumn['domain_type']
+            && !$this->platform->hasDoctrineTypeMappingFor($dbType)
         ) {
-            $length = (int)$matches[1];
+            $dbType = $tableColumn['domain_type'];
+            $completeType = $tableColumn['domain_complete_type'];
+        } else {
+            $completeType = $tableColumn['complete_type'];
         }
+
+        $type = $this->platform->getDoctrineTypeMapping($dbType);
 
         if (array_key_exists('attidentity', $tableColumn)) {
             $autoincrement = 'd' === $tableColumn['attidentity'];
@@ -261,111 +262,42 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
             $autoincrement = false;
         }
 
-        $matches = [];
-
-        assert(array_key_exists('default', $tableColumn));
-        assert(array_key_exists('complete_type', $tableColumn));
-
-        if (null !== $tableColumn['default']) {
-            if (preg_match("/^(?:nextval\('([^']+)'(::.*)?\)|unique_rowid\(\))$/", $tableColumn['default'], $matches) === 1) {
-                $tableColumn['default'] = null;
-                $autoincrement = true;
-            } elseif (preg_match("/^['(](.*)[')]::/", $tableColumn['default'], $matches) === 1) {
-                $tableColumn['default'] = $matches[1];
-            } elseif (str_starts_with($tableColumn['default'], 'NULL::')) {
-                $tableColumn['default'] = null;
-            }
-        }
-
-        if (-1 === $length && isset($tableColumn['atttypmod'])) {
-            $length = $tableColumn['atttypmod'] - 4;
-        }
-
-        if ((int)$length <= 0) {
-            $length = null;
-        }
-
-        $fixed = false;
-
-        if (!isset($tableColumn['name'])) {
-            $tableColumn['name'] = '';
-        }
-
-        $precision = null;
-        $scale = 0;
-        $jsonb = null;
-        $dbType = strtolower($tableColumn['type']);
-
         if (
-            null !== $tableColumn['domain_type']
-            && '' !== $tableColumn['domain_type']
-            && !$this->platform->hasDoctrineTypeMappingFor($tableColumn['type'])
+            is_string($tableColumn['default'])
+            && preg_match("/^(?:nextval\('([^']+)'(::.*)?\)|unique_rowid\(\))$/", $tableColumn['default']) === 1
         ) {
-            $dbType = strtolower($tableColumn['domain_type']);
-            $tableColumn['complete_type'] = $tableColumn['domain_complete_type'];
+            $tableColumn['default'] = null;
+            $autoincrement = true;
         }
-
-        $type = $this->platform->getDoctrineTypeMapping($dbType);
 
         switch ($dbType) {
+            case 'bpchar':
+                $fixed = true;
+                // no break
+            case 'varchar':
+                $parameters = $this->parseColumnTypeParameters($completeType);
+                if (count($parameters) > 0) {
+                    $length = $parameters[0];
+                }
+
+                break;
+
             case 'serial2':
             case 'serial4':
             case 'serial8':
                 $autoincrement = true;
                 // no break
-            case 'smallint':
-            case 'int2':
-            case 'int':
-            case 'int4':
-            case 'integer':
-            case 'bigint':
-            case 'int8':
-                $length = null;
-                break;
-
-            case 'bool':
-            case 'boolean':
-                if ('true' === $tableColumn['default']) {
-                    $tableColumn['default'] = true;
-                }
-
-                if ('false' === $tableColumn['default']) {
-                    $tableColumn['default'] = false;
-                }
-
-                $length = null;
-                break;
-
-            case 'text':
-            case '_varchar':
-            case 'varchar':
-                $tableColumn['default'] = $this->parseDefaultExpression($tableColumn['default']);
-                break;
-
-            case 'char':
-            case 'bpchar':
-                $fixed = true;
-                break;
-
-            case 'float':
-            case 'float4':
-            case 'float8':
             case 'double':
-            case 'double precision':
-            case 'real':
             case 'decimal':
             case 'money':
             case 'numeric':
-                if (
-                    preg_match(
-                        '([A-Za-z]+\((\d+),(\d+)\))',
-                        $tableColumn['complete_type'],
-                        $match,
-                    ) === 1
-                ) {
-                    $precision = (int)$match[1];
-                    $scale = (int)$match[2];
-                    $length = null;
+                $parameters = $this->parseColumnTypeParameters($completeType);
+                if (count($parameters) > 0) {
+                    $precision = $parameters[0];
+                }
+
+                if (count($parameters) > 1) {
+                    $scale = $parameters[1];
                 }
 
                 break;
@@ -379,21 +311,10 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
                 break;
         }
 
-        if (
-            is_string($tableColumn['default'])
-            && preg_match(
-                "('([^']+)'::)",
-                $tableColumn['default'],
-                $match,
-            ) === 1
-        ) {
-            $tableColumn['default'] = $match[1];
-        }
-
         $options = [
             'length' => $length,
             'notnull' => (bool)$tableColumn['isnotnull'],
-            'default' => $tableColumn['default'],
+            'default' => $this->parseDefaultExpression($tableColumn['default']),
             'precision' => $precision,
             'scale' => $scale,
             'fixed' => $fixed,
@@ -418,23 +339,52 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
     }
 
     /**
-     * Parses a default value expression as given by CockroachDB
+     * Parses the parameters between parenthesis in the data type.
+     *
+     * @return list<int>
      */
-    private function parseDefaultExpression(?string $default): ?string
+    private function parseColumnTypeParameters(string $type): array
     {
-        if (null === $default) {
-            return null;
+        if (preg_match('/\((\d+)(?:,(\d+))?\)/', $type, $matches) !== 1) {
+            return [];
         }
 
-        return str_replace("''", "'", $default);
+        $parameters = [(int) $matches[1]];
+
+        if (isset($matches[2])) {
+            $parameters[] = (int) $matches[2];
+        }
+
+        return $parameters;
     }
 
     /**
-     * {@inheritDoc}
+     * Parses a default value expression as given by CockroachDB
      */
+    private function parseDefaultExpression(?string $expression): mixed
+    {
+        if (null === $expression || str_starts_with($expression, 'NULL::')) {
+            return null;
+        }
+
+        if ('true' === $expression) {
+            return true;
+        }
+
+        if ('false' === $expression) {
+            return false;
+        }
+
+        if (preg_match("/^'(.*)'::/s", $expression, $matches) === 1) {
+            return str_replace("''", "'", $matches[1]);
+        }
+
+        return $expression;
+    }
+
     protected function selectTableNames(string $databaseName): Result
     {
-        $sql = "
+        $sql = <<<'SQL'
             SELECT
                 quote_ident(table_name) AS table_name,
                 table_schema AS schema_name
@@ -447,144 +397,144 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
                 AND table_schema != 'crdb_internal'
                 AND table_name != 'geometry_columns'
                 AND table_name != 'spatial_ref_sys'
-                AND table_type = 'BASE TABLE'";
+                AND table_type = 'BASE TABLE'
+            ORDER BY
+                quote_ident(table_name)
+SQL;
 
         return $this->connection->executeQuery($sql, [$databaseName]);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function selectTableColumns(string $databaseName, ?string $tableName = null): Result
     {
-        $columns = [];
-        $columns[] = 'a.attnum';
-        $columns[] = 'quote_ident(a.attname) AS field';
-        $columns[] = 't.typname AS type';
-        $columns[] = 'format_type(a.atttypid, a.atttypmod) AS complete_type';
-        $columns[] = '(SELECT tc.collcollate FROM pg_catalog.pg_collation tc WHERE tc.oid = a.attcollation) AS collation';
-        $columns[] = '(SELECT t1.typname FROM pg_catalog.pg_type t1 WHERE t1.oid = t.typbasetype) AS domain_type';
-        $columns[] = "(SELECT format_type(t2.typbasetype, t2.typtypmod) FROM pg_catalog.pg_type t2 WHERE t2.typtype = 'd' AND t2.oid = a.atttypid) AS domain_complete_type, a.attnotnull AS isnotnull";
-        $columns[] = "(SELECT 't' FROM pg_index WHERE c.oid = pg_index.indrelid AND pg_index.indkey[0] = a.attnum AND pg_index.indisprimary = 't') AS pri";
-        $columns[] = '(SELECT pg_get_expr(adbin, adrelid) FROM pg_attrdef WHERE c.oid = pg_attrdef.adrelid AND pg_attrdef.adnum=a.attnum) AS default';
-        $columns[] = '(SELECT pg_description.description FROM pg_description WHERE pg_description.objoid = c.oid AND a.attnum = pg_description.objsubid) AS comment';
+        $params = [];
 
-        if (null === $tableName) {
-            $columns[] = 'c.relname AS table_name';
-            $columns[] = 'n.nspname AS schema_name';
-        }
+        $sql = sprintf(
+            <<<'SQL'
+            SELECT quote_ident(n.nspname) AS schema_name,
+                   quote_ident(c.relname) AS table_name,
+                   quote_ident(a.attname) AS field,
+                   t.typname AS type,
+                   format_type(a.atttypid, a.atttypmod) AS complete_type,
+                   bt.typname AS domain_type,
+                   format_type(bt.oid, t.typtypmod) AS domain_complete_type,
+                   a.attnotnull AS isnotnull,
+                   a.attidentity,
+                   (%s) AS "default",
+                   dsc.description AS comment,
+                   CASE
+                       WHEN coll.collprovider = 'c'
+                           THEN coll.collcollate
+                       WHEN coll.collprovider = 'd'
+                           THEN NULL
+                       ELSE coll.collname
+                       END AS collation
+            FROM pg_attribute a
+                     JOIN pg_class c
+                          ON c.oid = a.attrelid
+                     JOIN pg_namespace n
+                          ON n.oid = c.relnamespace
+                     JOIN pg_type t
+                          ON t.oid = a.atttypid
+                     LEFT JOIN pg_type bt
+                               ON t.typtype = 'd'
+                                   AND bt.oid = t.typbasetype
+                     LEFT JOIN pg_collation coll
+                               ON coll.oid = a.attcollation
+                     LEFT JOIN pg_depend dep
+                               ON dep.objid = c.oid
+                                   AND dep.deptype = 'e'
+                                   AND dep.classid = (SELECT oid FROM pg_class WHERE relname = 'pg_class')
+                     LEFT JOIN pg_description dsc
+                               ON dsc.objoid = c.oid AND dsc.objsubid = a.attnum
+                     LEFT JOIN pg_inherits i
+                               ON i.inhrelid = c.oid
+                     LEFT JOIN pg_class p
+                               ON i.inhparent = p.oid
+                                   AND p.relkind = 'p'
+            WHERE %s
+              -- 'r' for regular tables - 'p' for partitioned tables
+              AND c.relkind IN ('r', 'p')
+              AND a.attnum > 0
+              AND dep.refobjid IS NULL
+              -- exclude partitions (tables that inherit from partitioned tables)
+              AND p.oid IS NULL
+            ORDER BY n.nspname,
+                c.relname,
+                a.attnum
+            SQL,
+            $this->platform->getDefaultColumnValueSQLSnippet(),
+            implode(' AND ', $this->buildQueryConditions($tableName, $params)),
+        );
 
-        $conditions = ['a.attnum > 0', 'a.attisdropped = false', "c.relkind = 'r'", 'd.refobjid IS NULL'];
-        $conditions = array_merge($conditions, $this->buildQueryConditions($tableName));
-
-        $sql = '
-            SELECT
-                ' . implode(', ', $columns) . "
-            FROM
-                pg_attribute AS a
-                INNER JOIN pg_class AS c ON (
-                    c.oid = a.attrelid
-                )
-                INNER JOIN pg_type AS t ON (
-                    t.oid = a.atttypid
-                )
-                INNER JOIN pg_namespace AS n ON (
-                    n.oid = c.relnamespace
-                )
-                LEFT JOIN pg_depend AS d ON (
-                    d.objid = c.oid
-                    AND d.deptype = 'e'
-                    AND d.classid = (SELECT oid FROM pg_class WHERE relname = 'pg_class')
-                )
-            WHERE
-                " . implode(' AND ', $conditions) . '
-            ORDER BY
-                a.attnum ASC';
-
-        return $this->connection->executeQuery($sql);
+        return $this->connection->executeQuery($sql, $params);
     }
 
     protected function selectIndexColumns(string $databaseName, ?string $tableName = null): Result
     {
-        $sql = 'SELECT';
+        $params = [];
 
-        if (null === $tableName) {
-            $sql .= '
-                tc.relname AS table_name,
-                tn.nspname AS schema_name,';
-        }
-
-        $sql .= '
+        $sql = sprintf(
+            <<<'SQL'
+            SELECT
+                quote_ident(n.nspname) AS schema_name,
+                quote_ident(c.relname) AS table_name,
                 quote_ident(ic.relname) AS relname,
                 i.indisunique,
                 i.indisprimary,
                 i.indkey,
                 i.indrelid,
-                pg_get_expr(indpred, indrelid) AS "where"
-            FROM
-                pg_index i
-                JOIN pg_class AS tc ON (
-                    tc.oid = i.indrelid
-                )
-                JOIN pg_namespace tn ON (
-                    tn.oid = tc.relnamespace
-                )
-                JOIN pg_class AS ic ON (
-                    ic.oid = i.indexrelid
-                )
-            WHERE
-                ic.oid IN (
-                    SELECT
-                        indexrelid
-                    FROM
-                        pg_index AS i,
-                        pg_class AS c,
-                        pg_namespace AS n';
+                pg_get_expr(indpred, indrelid) AS "where",
+                quote_ident(attname) AS attname
+            FROM pg_index i
+            JOIN pg_class AS c ON c.oid = i.indrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_class AS ic ON ic.oid = i.indexrelid
+            JOIN LATERAL UNNEST(i.indkey) WITH ORDINALITY AS keys(attnum, ord)
+                ON TRUE
+            JOIN pg_attribute a
+                ON a.attrelid = c.oid
+                AND a.attnum = keys.attnum
+            WHERE %s
+            ORDER BY 1, 2, keys.ord;
+            SQL,
+            implode(' AND ', $this->buildQueryConditions($tableName, $params)),
+        );
 
-        $conditions = array_merge([
-            'c.oid = i.indrelid',
-            'c.relnamespace = n.oid',
-        ], $this->buildQueryConditions($tableName));
-
-        $sql .= ' WHERE ' . implode(' AND ', $conditions) . ')';
-
-        return $this->connection->executeQuery($sql);
+        return $this->connection->executeQuery($sql, $params);
     }
 
     protected function selectForeignKeyColumns(string $databaseName, ?string $tableName = null): Result
     {
-        $sql = 'SELECT';
+        $params = [];
 
-        if (null === $tableName) {
-            $sql .= '
-                tc.relname AS table_name,
-                tn.nspname AS schema_name,';
-        }
+        $sql = sprintf(
+            <<<'SQL'
+                SELECT
+                    quote_ident(tn.nspname) AS schema_name,
+                    quote_ident(tc.relname) AS table_name,
+                    quote_ident(r.conname) as conname,
+                    pg_get_constraintdef(r.oid, true) as condef,
+                    r.condeferrable,
+                    r.condeferred
+                FROM pg_constraint r
+                JOIN pg_class AS tc ON tc.oid = r.conrelid
+                JOIN pg_namespace tn ON tn.oid = tc.relnamespace
+                WHERE r.conrelid IN
+                    (
+                        SELECT c.oid
+                        FROM pg_class c
+                        JOIN pg_namespace n
+                            ON n.oid = c.relnamespace
+                        WHERE %s
+                    )
+                    AND r.contype = 'f'
+                    ORDER BY 1, 2
+        SQL,
+            implode(' AND ', $this->buildQueryConditions($tableName, $params)),
+        );
 
-        $sql .= '
-                quote_ident(r.conname) AS conname,
-                pg_get_constraintdef(r.oid, true) AS condef
-            FROM
-                pg_constraint AS r
-                JOIN pg_class AS tc ON (
-                    tc.oid = r.conrelid
-                )
-                JOIN pg_namespace tn ON (
-                    tn.oid = tc.relnamespace
-                )
-            WHERE
-                r.conrelid IN (
-                    SELECT
-                        c.oid
-                    FROM
-                        pg_class AS c,
-                        pg_namespace AS n';
-
-        $conditions = array_merge(['n.oid = c.relnamespace'], $this->buildQueryConditions($tableName));
-
-        $sql .= ' WHERE ' . implode(' AND ', $conditions) . ") AND r.contype = 'f'";
-
-        return $this->connection->executeQuery($sql);
+        return $this->connection->executeQuery($sql, $params);
     }
 
     /**
@@ -592,43 +542,54 @@ class CockroachDBSchemaManager extends AbstractSchemaManager
      */
     protected function fetchTableOptionsByTable(string $databaseName, ?string $tableName = null): array
     {
-        $sql = "
+        $params = [];
+
+        $sql = sprintf(
+            <<<'SQL'
             SELECT
-                c.relname,
-                CASE c.relpersistence
-                    WHEN 'u' THEN true ELSE false
-                END AS unlogged,
+                quote_ident(n.nspname) AS schema_name,
+                quote_ident(c.relname) AS table_name,
+                CASE c.relpersistence WHEN 'u' THEN true ELSE false END as unlogged,
                 obj_description(c.oid, 'pg_class') AS comment
-            FROM
-                pg_class AS c
-                INNER JOIN pg_namespace AS n ON (
-                    n.oid = c.relnamespace
-                )";
+            FROM pg_class c
+                 INNER JOIN pg_namespace n
+                     ON n.oid = c.relnamespace
+            WHERE
+                  c.relkind = 'r'
+              AND %s
+            SQL,
+            implode(' AND ', $this->buildQueryConditions($tableName, $params)),
+        );
 
-        $conditions = array_merge(["c.relkind = 'r'"], $this->buildQueryConditions($tableName));
+        $tableOptions = [];
+        foreach ($this->connection->iterateAssociative($sql, $params) as $row) {
+            $tableOptions[$this->_getPortableTableDefinition($row)] = $row;
+        }
 
-        $sql .= ' WHERE ' . implode(' AND ', $conditions);
-
-        return $this->connection->fetchAllAssociativeIndexed($sql);
+        return $tableOptions;
     }
 
     /**
-     * @return list<string>
+     * @param list<int|string> $params
+     *
+     * @return non-empty-list<string>
      */
-    protected function buildQueryConditions(?string $tableName): array
+    private function buildQueryConditions(?string $tableName, array &$params): array
     {
         $conditions = [];
 
         if (null !== $tableName) {
             if (str_contains($tableName, '.')) {
                 [$schemaName, $tableName] = explode('.', $tableName);
-                $conditions[] = 'n.nspname = ' . $this->platform->quoteStringLiteral($schemaName);
+
+                $conditions[] = 'n.nspname = ?';
+                $params[] = $schemaName;
             } else {
                 $conditions[] = 'n.nspname = ANY(current_schemas(false))';
             }
 
-            $identifier = new Identifier($tableName);
-            $conditions[] = 'c.relname = ' . $this->platform->quoteStringLiteral($identifier->getName());
+            $conditions[] = 'c.relname = ?';
+            $params[] = $tableName;
         }
 
         $conditions[] = "n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast', 'pg_extension', 'crdb_internal')";

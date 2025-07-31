@@ -22,6 +22,7 @@ use Doctrine\DBAL\Types\Type;
 use Doctrine\DBAL\Types\Types;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use UnexpectedValueException;
 
@@ -40,13 +41,7 @@ class PlatformTest extends TestCase
         $this->platform = $this->createPlatform();
     }
 
-    /**
-     * @dataProvider getReturnsForeignKeyReferentialActionSQL
-     *
-     * @param string $action
-     * @param string $expectedSQL
-     * @return void
-     */
+    #[DataProvider('getReturnsForeignKeyReferentialActionSQL')]
     public function testReturnsForeignKeyReferentialActionSQL(string $action, string $expectedSQL): void
     {
         self::assertSame($expectedSQL, $this->platform->getForeignKeyReferentialActionSQL($action));
@@ -340,7 +335,7 @@ class PlatformTest extends TestCase
             addedColumns: [
                 'quota' => new Column('quota', Type::getType('integer'), ['comment' => 'A comment']),
             ],
-            modifiedColumns: [
+            changedColumns: [
                 'foo' => new ColumnDiff(
                     new Column(
                         'foo',
@@ -364,7 +359,6 @@ class PlatformTest extends TestCase
                 ),
             ],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -608,7 +602,7 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: $table,
             addedColumns: [],
-            modifiedColumns: [
+            changedColumns: [
                 'select' => new ColumnDiff(
                     new Column(
                         'select',
@@ -622,7 +616,6 @@ class PlatformTest extends TestCase
                 ),
             ],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -651,9 +644,8 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: $table,
             addedColumns: [],
-            modifiedColumns: [],
+            changedColumns: [],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -684,9 +676,8 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: $table,
             addedColumns: [],
-            modifiedColumns: [],
+            changedColumns: [],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -818,9 +809,8 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: $table,
             addedColumns: [],
-            modifiedColumns: [],
+            changedColumns: [],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -851,9 +841,8 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: $table,
             addedColumns: [],
-            modifiedColumns: [],
+            changedColumns: [],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -1084,15 +1073,21 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: $table,
             addedColumns: [],
-            modifiedColumns: [],
-            droppedColumns: [],
-            renamedColumns: [
-                'bar' => new Column(
-                    'baz',
-                    Type::getType('integer'),
-                    ['notnull' => true, 'default' => 666, 'comment' => 'rename test'],
+            changedColumns: [
+                'bar' => new ColumnDiff(
+                    oldColumn: new Column(
+                        name: 'bar',
+                        type: Type::getType('integer'),
+                        options: ['notnull' => true, 'default' => 666, 'comment' => 'rename test'],
+                    ),
+                    newColumn: new Column(
+                        name: 'baz',
+                        type: Type::getType('integer'),
+                        options: ['notnull' => true, 'default' => 666, 'comment' => 'rename test'],
+                    ),
                 ),
             ],
+            droppedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -1102,7 +1097,10 @@ class PlatformTest extends TestCase
             droppedForeignKeys: [],
         );
 
-        self::assertSame($this->getAlterTableRenameColumnSQL(), $this->platform->getAlterTableSQL($tableDiff));
+        self::assertSame(
+            expected: $this->getAlterTableRenameColumnSQL(),
+            actual: $this->platform->getAlterTableSQL($tableDiff),
+        );
     }
 
     /**
@@ -1115,7 +1113,7 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: new Table('mytable'),
             addedColumns: [],
-            modifiedColumns: [
+            changedColumns: [
                 'name' => new ColumnDiff(
                     new Column(
                         'name',
@@ -1130,7 +1128,6 @@ class PlatformTest extends TestCase
                 ),
             ],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -1169,9 +1166,8 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: $primaryTable,
             addedColumns: [],
-            modifiedColumns: [],
+            changedColumns: [],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -1190,12 +1186,9 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @dataProvider getGeneratesDecimalTypeDeclarationSQL
-     *
      * @param array<string,mixed> $column
-     * @param string $expectedSql
-     * @return void
      */
+    #[DataProvider('getGeneratesDecimalTypeDeclarationSQL')]
     public function testGeneratesDecimalTypeDeclarationSQL(array $column, string $expectedSql): void
     {
         self::assertSame($expectedSql, $this->platform->getDecimalTypeDeclarationSQL($column));
@@ -1216,12 +1209,9 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @dataProvider getGeneratesFloatDeclarationSQL
-     *
      * @param array<string,mixed> $column
-     * @param string $expectedSql
-     * @return void
      */
+    #[DataProvider('getGeneratesFloatDeclarationSQL')]
     public function testGeneratesFloatDeclarationSQL(array $column, string $expectedSql): void
     {
         self::assertSame($expectedSql, $this->platform->getFloatDeclarationSQL($column));
@@ -1259,7 +1249,7 @@ class PlatformTest extends TestCase
      */
     public function testZeroOffsetWithoutLimitIsIgnored(): void
     {
-        $query = 'SELECT * FROM user';
+        $query = 'SELECT * FROM `user`';
 
         self::assertSame(
             $query,
@@ -1268,10 +1258,9 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @dataProvider asciiStringSqlDeclarationDataProvider
-     *
      * @param array<string,mixed> $column
      */
+    #[DataProvider('asciiStringSqlDeclarationDataProvider')]
     public function testAsciiSQLDeclaration(string $expectedSql, array $column): void
     {
         $declarationSql = $this->platform->getAsciiStringTypeDeclarationSQL($column);
@@ -1297,9 +1286,8 @@ class PlatformTest extends TestCase
         $diff = new TableDiff(
             oldTable: new Table('test'),
             addedColumns: [],
-            modifiedColumns: [],
+            changedColumns: [],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -1544,14 +1532,10 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @dataProvider serialTypes
-     *
-     * @param string $type
-     * @param string $definition
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
+    #[DataProvider('serialTypes')]
     public function testGenerateTableWithAutoincrementDoesNotSetDefault(string $type, string $definition): void
     {
         $table = new Table('autoinc_table_notnull');
@@ -1565,14 +1549,10 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @dataProvider serialTypes
-     *
-     * @param string $type
-     * @param string $definition
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
+    #[DataProvider('serialTypes')]
     public function testCreateTableWithAutoincrementAndNotNullAddsConstraint(string $type, string $definition): void
     {
         $table = new Table('autoinc_table_notnull_enabled');
@@ -1586,12 +1566,9 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @dataProvider serialTypes
-     *
-     * @param string $type
-     * @return void
      * @throws Exception
      */
+    #[DataProvider('serialTypes')]
     public function testGetDefaultValueDeclarationSQLIgnoresTheDefaultKeyWhenTheFieldIsSerial(string $type): void
     {
         $sql = $this->platform->getDefaultValueDeclarationSQL(
@@ -1754,6 +1731,7 @@ class PlatformTest extends TestCase
     {
         return [
             'ALTER TABLE mytable ADD quota INT4 NOT NULL',
+            'ALTER TABLE mytable RENAME COLUMN bar TO baz',
             "COMMENT ON COLUMN mytable.quota IS 'A comment'",
             "COMMENT ON COLUMN mytable.baz IS 'B comment'",
         ];
@@ -1817,13 +1795,7 @@ class PlatformTest extends TestCase
         ];
     }
 
-    /**
-     * @dataProvider pgBooleanProvider
-     *
-     * @param bool|string|null $databaseValue
-     * @param string $preparedStatementValue
-     * @return void
-     */
+    #[DataProvider('pgBooleanProvider')]
     public function testConvertBooleanAsLiteralStrings(
         null|bool|string $databaseValue,
         string $preparedStatementValue,
@@ -1848,15 +1820,7 @@ class PlatformTest extends TestCase
         self::assertEquals(0, $platform->convertBooleans('0'));
     }
 
-    /**
-     * @dataProvider pgBooleanProvider
-     *
-     * @param bool|string|null $databaseValue
-     * @param string $preparedStatementValue
-     * @param int|null $integerValue
-     * @param bool|null $booleanValue
-     * @return void
-     */
+    #[DataProvider('pgBooleanProvider')]
     public function testConvertBooleanAsDatabaseValueStrings(
         null|bool|string $databaseValue,
         string $preparedStatementValue,
@@ -1880,15 +1844,7 @@ class PlatformTest extends TestCase
         self::assertSame(0, $platform->convertBooleansToDatabaseValue(false));
     }
 
-    /**
-     * @dataProvider pgBooleanProvider
-     *
-     * @param bool|string|null $databaseValue
-     * @param string $prepareStatementValue
-     * @param int|null $integerValue
-     * @param bool|null $booleanValue
-     * @return void
-     */
+    #[DataProvider('pgBooleanProvider')]
     public function testConvertFromBoolean(
         null|bool|string $databaseValue,
         string $prepareStatementValue,
@@ -1940,11 +1896,11 @@ class PlatformTest extends TestCase
         $tableDiff = new TableDiff(
             oldTable: $table,
             addedColumns: [],
-            modifiedColumns: [
+            changedColumns: [
                 'dloo1' => new ColumnDiff(
                     new Column(
                         'dloo1',
-                        Type::getType('decimal'),
+                        Type::getType('float'),
                     ),
                     new Column(
                         'dloo1',
@@ -1955,7 +1911,7 @@ class PlatformTest extends TestCase
                 'dloo2' => new ColumnDiff(
                     new Column(
                         'dloo2',
-                        Type::getType('decimal'),
+                        Type::getType('float'),
                     ),
                     new Column(
                         'dloo2',
@@ -1966,7 +1922,7 @@ class PlatformTest extends TestCase
                 'dloo3' => new ColumnDiff(
                     new Column(
                         'dloo3',
-                        Type::getType('decimal'),
+                        Type::getType('float'),
                     ),
                     new Column(
                         'dloo3',
@@ -1977,7 +1933,7 @@ class PlatformTest extends TestCase
                 'dloo4' => new ColumnDiff(
                     new Column(
                         'dloo4',
-                        Type::getType('decimal'),
+                        Type::getType('float'),
                     ),
                     new Column(
                         'dloo4',
@@ -1987,7 +1943,6 @@ class PlatformTest extends TestCase
                 ),
             ],
             droppedColumns: [],
-            renamedColumns: [],
             addedIndexes: [],
             modifiedIndexes: [],
             droppedIndexes: [],
@@ -2064,13 +2019,9 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @dataProvider dataCreateSequenceWithCache
-     *
-     * @param int $cacheSize
-     * @param string $expectedSql
-     * @return void
      * @throws Exception
      */
+    #[DataProvider('dataCreateSequenceWithCache')]
     public function testCreateSequenceWithCache(int $cacheSize, string $expectedSql): void
     {
         $sequence = new Sequence('foo', 1, 1, $cacheSize);
@@ -2209,9 +2160,9 @@ class PlatformTest extends TestCase
             'ALTER TABLE mytable RENAME COLUMN "create" TO reserved_keyword',
             'ALTER TABLE mytable RENAME COLUMN "table" TO "from"',
             'ALTER TABLE mytable RENAME COLUMN "select" TO "bar"',
-            'ALTER TABLE mytable RENAME COLUMN quoted1 TO quoted',
-            'ALTER TABLE mytable RENAME COLUMN quoted2 TO "and"',
-            'ALTER TABLE mytable RENAME COLUMN quoted3 TO "baz"',
+            'ALTER TABLE mytable RENAME COLUMN "quoted1" TO quoted',
+            'ALTER TABLE mytable RENAME COLUMN "quoted2" TO "and"',
+            'ALTER TABLE mytable RENAME COLUMN "quoted3" TO "baz"',
         ];
     }
 
