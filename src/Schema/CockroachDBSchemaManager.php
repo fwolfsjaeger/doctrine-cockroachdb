@@ -271,6 +271,7 @@ SQL,
         }
 
         switch ($dbType) {
+            case 'char':
             case 'bpchar':
                 $fixed = true;
                 // no break
@@ -287,7 +288,12 @@ SQL,
             case 'serial8':
                 $autoincrement = true;
                 // no break
+            case 'float':
+            case 'float4':
+            case 'float8':
             case 'double':
+            case 'double precision':
+            case 'real':
             case 'decimal':
             case 'money':
             case 'numeric':
@@ -302,12 +308,10 @@ SQL,
 
                 break;
 
-            case 'year':
-                $length = null;
-                break;
-
+            case 'json':
             case 'jsonb':
                 $jsonb = true;
+                $type = 'jsonb';
                 break;
         }
 
@@ -456,6 +460,7 @@ SQL;
               -- 'r' for regular tables - 'p' for partitioned tables
               AND c.relkind IN ('r', 'p')
               AND a.attnum > 0
+              AND a.attisdropped = false
               AND dep.refobjid IS NULL
               -- exclude partitions (tables that inherit from partitioned tables)
               AND p.oid IS NULL

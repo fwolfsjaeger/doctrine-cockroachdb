@@ -2404,8 +2404,8 @@ class PlatformTest extends TestCase
     public function testInitializesJsonTypeMapping(): void
     {
         self::assertTrue($this->platform->hasDoctrineTypeMappingFor('json'));
-        self::assertEquals(Types::JSON, $this->platform->getDoctrineTypeMapping('json'));
+        self::assertEquals(Types::JSONB, $this->platform->getDoctrineTypeMapping('json'));
         self::assertTrue($this->platform->hasDoctrineTypeMappingFor('jsonb'));
-        self::assertEquals(Types::JSON, $this->platform->getDoctrineTypeMapping('jsonb'));
+        self::assertEquals(Types::JSONB, $this->platform->getDoctrineTypeMapping('jsonb'));
     }
 }
