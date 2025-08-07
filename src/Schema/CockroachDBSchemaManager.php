@@ -331,7 +331,7 @@ SQL,
 
         $column = new Column($tableColumn['field'], Type::getType($type), $options);
 
-        if (!empty($tableColumn['collation'])) {
+        if (!empty($tableColumn['collation']) && 'default' !== $tableColumn['collation']) {
             $column->setPlatformOption('collation', $tableColumn['collation']);
         }
 

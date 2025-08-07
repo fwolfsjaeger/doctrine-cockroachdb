@@ -2,10 +2,6 @@ parameters:
     level: 8
     treatPhpDocTypesAsCertain: false
     reportMaybesInMethodSignatures: false
-    checkGenericClassInNonGenericObjectType: false
-    strictRules:
-        disallowedConstructs: false
-        noVariableVariables: false
     paths:
         - src
         - tests
