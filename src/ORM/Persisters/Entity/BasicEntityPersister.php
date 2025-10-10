@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace DoctrineCockroachDB\ORM\Persisters\Entity;
 
+use BackedEnum;
 use Doctrine\DBAL\Exception as DoctrineDbalException;
 use Doctrine\DBAL\Types\Type;
 use Doctrine\ORM\EntityNotFoundException;
-use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\MappingException;
 use Doctrine\ORM\Persisters\Entity\BasicEntityPersister as DoctrineBasicEntityPersister;
 use Doctrine\ORM\Utility\PersisterHelper;
@@ -19,8 +19,6 @@ use function implode;
 
 /**
  * Adds insert support for {@link SerialGenerator}, otherwise identical functionality to {@link BasicEntityPersister}.
- *
- * @psalm-import-type AssociationMapping from ClassMetadata
  */
 final class BasicEntityPersister extends DoctrineBasicEntityPersister
 {
@@ -214,9 +212,8 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
                     $this->em,
                 );
 
-                $result[$owningTable][$sourceColumn] = null !== $newValId
-                    ? $newValId[$targetClass->getFieldForColumn($targetColumn)]
-                    : null;
+                $newValue = null !== $newValId ? $newValId[$targetClass->getFieldForColumn($targetColumn)] : null;
+                $result[$owningTable][$sourceColumn] = $newValue instanceof BackedEnum ? $newValue->value : $newValue;
             }
         }
 
@@ -297,7 +294,7 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
 
         $columns = [];
 
-        foreach ($this->class->reflFields as $name => $field) {
+        foreach ($this->class->propertyAccessors as $name => $propertyAccessor) {
             if ($this->class->isVersioned && $this->class->versionField === $name) {
                 continue;
             }
@@ -309,7 +306,7 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
             if (isset($this->class->associationMappings[$name])) {
                 $assoc = $this->class->associationMappings[$name];
 
-                if (isset($assoc->joinColumns) && $assoc->isToOneOwningSide()) {
+                if ($assoc->isToOneOwningSide()) {
                     foreach ($assoc->joinColumns as $joinColumn) {
                         $columns[] = $this->quoteStrategy
                             ->getJoinColumnName($joinColumn, $this->class, $this->platform);

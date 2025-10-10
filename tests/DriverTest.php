@@ -14,8 +14,6 @@ use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use PHPUnit\Framework\MockObject\Exception as MockException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use ReflectionException;
-use ReflectionProperty;
 
 /**
  * @requires extension pdo_pgsql

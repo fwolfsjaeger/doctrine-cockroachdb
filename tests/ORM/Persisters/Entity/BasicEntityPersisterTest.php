@@ -8,8 +8,8 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception as DoctrineDbalException;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping\FieldMapping;
-use DoctrineCockroachDB\ORM\Persisters\Entity\BasicEntityPersister;
 use Doctrine\Persistence\Mapping\RuntimeReflectionService;
+use DoctrineCockroachDB\ORM\Persisters\Entity\BasicEntityPersister;
 use DoctrineCockroachDB\Tests\ConnectionHelper;
 use DoctrineCockroachDB\Tests\ORM\EntityManagerMockTrait;
 use DoctrineCockroachDB\Tests\ORM\TestEntityClassMetadataTrait;
@@ -76,7 +76,7 @@ final class BasicEntityPersisterTest extends TestCase
         );
         $classMetadata->wakeupReflection(new RuntimeReflectionService());
         $entityManagerMock
-            ->expects(self::atLeastOnce())
+            ->expects($this->atLeastOnce())
             ->method('getClassMetadata')
             ->with(TestEntity::class)
             ->willReturn($classMetadata);

@@ -94,7 +94,7 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
         );
         $entityManagerMock = $this->getEntityManagerMock(expectAtLeast: 0);
         $entityManagerMock
-            ->expects(self::once())
+            ->expects($this->once())
             ->method('getClassMetadata')
             ->with(TestEntity::class)
             ->willReturn($targetClassMetadata);

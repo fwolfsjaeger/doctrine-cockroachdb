@@ -1521,7 +1521,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return array<array{string}>
+     * @return array<array<string>>
      */
     public static function serialTypes(): array
     {
@@ -1536,8 +1536,10 @@ class PlatformTest extends TestCase
      * @throws SchemaException
      */
     #[DataProvider('serialTypes')]
-    public function testGenerateTableWithAutoincrementDoesNotSetDefault(string $type, string $definition): void
-    {
+    public function testGenerateTableWithAutoincrementDoesNotSetDefault(
+        string $type,
+        string $definition,
+    ): void {
         $table = new Table('autoinc_table_notnull');
         $column = $table->addColumn('id', $type);
         $column->setAutoincrement(true);
@@ -1553,8 +1555,10 @@ class PlatformTest extends TestCase
      * @throws SchemaException
      */
     #[DataProvider('serialTypes')]
-    public function testCreateTableWithAutoincrementAndNotNullAddsConstraint(string $type, string $definition): void
-    {
+    public function testCreateTableWithAutoincrementAndNotNullAddsConstraint(
+        string $type,
+        string $definition,
+    ): void {
         $table = new Table('autoinc_table_notnull_enabled');
         $column = $table->addColumn('id', $type);
         $column->setAutoincrement(true);
@@ -1569,8 +1573,10 @@ class PlatformTest extends TestCase
      * @throws Exception
      */
     #[DataProvider('serialTypes')]
-    public function testGetDefaultValueDeclarationSQLIgnoresTheDefaultKeyWhenTheFieldIsSerial(string $type): void
-    {
+    public function testGetDefaultValueDeclarationSQLIgnoresTheDefaultKeyWhenTheFieldIsSerial(
+        string $type,
+        string $definition,
+    ): void {
         $sql = $this->platform->getDefaultValueDeclarationSQL(
             [
                 'autoincrement' => true,
@@ -1743,7 +1749,7 @@ class PlatformTest extends TestCase
     public function getCreateTableColumnTypeCommentsSQL(): array
     {
         return [
-            'CREATE TABLE test (id INT4 NOT NULL, data JSON NOT NULL, PRIMARY KEY(id))',
+            'CREATE TABLE test (id INT4 NOT NULL, data JSONB NOT NULL, PRIMARY KEY(id))',
         ];
     }
 
@@ -1799,6 +1805,8 @@ class PlatformTest extends TestCase
     public function testConvertBooleanAsLiteralStrings(
         null|bool|string $databaseValue,
         string $preparedStatementValue,
+        ?int $integerValue,
+        ?bool $booleanValue,
     ): void {
         $platform = $this->createPlatform();
 
@@ -2371,8 +2379,8 @@ class PlatformTest extends TestCase
      */
     public function testReturnsJsonTypeDeclarationSQL(): void
     {
-        self::assertSame('JSON', $this->platform->getJsonTypeDeclarationSQL([]));
-        self::assertSame('JSON', $this->platform->getJsonTypeDeclarationSQL(['jsonb' => false]));
+        self::assertSame('JSONB', $this->platform->getJsonTypeDeclarationSQL([]));
+        self::assertSame('JSONB', $this->platform->getJsonTypeDeclarationSQL(['jsonb' => false]));
         self::assertSame('JSONB', $this->platform->getJsonTypeDeclarationSQL(['jsonb' => true]));
     }
 

@@ -15,13 +15,13 @@ class TestEntity
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
     #[ORM\CustomIdGenerator(class: SerialGenerator::class)]
-    #[ORM\Column(name: 'an_identifier', type: Types::INTEGER, options: ['unsigned' => true])]
+    #[ORM\Column(name: 'an_identifier', type: Types::INTEGER, options: ['unsigned' => true, 'autoincrement' => true])]
     private int $id;
 
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'CUSTOM')]
     #[ORM\CustomIdGenerator(class: SerialGenerator::class)]
-    #[ORM\Column(name: 'second_identifier', type: Types::INTEGER, options: ['unsigned' => true])]
+    #[ORM\Column(name: 'second_identifier', type: Types::INTEGER, options: ['unsigned' => true, 'autoincrement' => true])]
     private int $id2;
 
     #[ORM\Column(name: 'a_string_column', type: Types::STRING, length: 255)]

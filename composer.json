@@ -4,7 +4,7 @@
     "description": "Doctrine DBAL CockroachDB Driver",
     "homepage": "https://github.com/fwolfsjaeger/doctrine-cockroachdb",
     "license": "MIT",
-    "version": "0.9.4",
+    "version": "0.9.5",
     "keywords": [
         "pdo_pgsql",
         "pdo",
@@ -28,15 +28,15 @@
     },
     "require-dev": {
         "doctrine/orm": "3.5.*",
-        "friendsofphp/php-cs-fixer": "3.85.*",
+        "friendsofphp/php-cs-fixer": "3.88.*",
         "phpstan/extension-installer": "1.4.*",
         "phpstan/phpstan": "2.1.*",
         "phpstan/phpstan-doctrine": "2.0.*",
         "phpstan/phpstan-phpunit": "2.0.*",
         "phpstan/phpstan-strict-rules": "2.0.*",
-        "phpunit/phpunit": "12.2.*",
+        "phpunit/phpunit": "12.4.*",
         "roave/security-advisories": "dev-latest",
-        "squizlabs/php_codesniffer": "3.*"
+        "squizlabs/php_codesniffer": "4.*"
     },
     "config": {
         "sort-packages": true,

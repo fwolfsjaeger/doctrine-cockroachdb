@@ -112,7 +112,7 @@ CREATE SCHEMA doctrine_tests AUTHORIZATION "doctrine_tests";
 ALTER DATABASE doctrine_tests SET search_path = doctrine_tests;
 GRANT ALL PRIVILEGES ON DATABASE doctrine_tests TO "doctrine_tests";
 GRANT ALL PRIVILEGES ON SCHEMA doctrine_tests TO "doctrine_tests";
-CREATE TABLE doctrine_tests.TestEntity (an_identifier INT8 NOT NULL, second_identifier INT8 NOT NULL, a_string_column VARCHAR(255) NOT NULL);
+CREATE TABLE doctrine_tests.TestEntity (an_identifier SERIAL8 NOT NULL, second_identifier SERIAL8 NOT NULL, a_string_column VARCHAR(255) NOT NULL);
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA doctrine_tests TO "doctrine_tests";
 ```
 
