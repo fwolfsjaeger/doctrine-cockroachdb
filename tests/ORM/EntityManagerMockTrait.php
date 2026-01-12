@@ -45,7 +45,7 @@ trait EntityManagerMockTrait
             ->expects(self::atLeast($expectAtLeast))
             ->method('getMetadataFactory')
             ->willReturn(new ClassMetadataFactory());
-        $eventManagerMock = self::createMock(EventManager::class);
+        $eventManagerMock = self::createStub(EventManager::class);
         $entityManagerMock
             ->expects(self::atLeast($expectAtLeast))
             ->method('getEventManager')
