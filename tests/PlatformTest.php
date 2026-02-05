@@ -196,7 +196,7 @@ class PlatformTest extends TestCase
     {
         $fk = new ForeignKeyConstraint(['fk_name_id'], 'other_table', ['id'], '');
         $sql = $this->platform->getCreateForeignKeySQL($fk, 'test');
-        self::assertEquals($sql, $this->getGenerateForeignKeySql());
+        self::assertEquals($this->getGenerateForeignKeySql(), $sql);
     }
 
     /**
@@ -1394,7 +1394,7 @@ class PlatformTest extends TestCase
         );
         self::assertEquals(
             'CONSTRAINT my_fk FOREIGN KEY (foreign_id)'
-            . ' REFERENCES my_table (id) MATCH full',
+            . ' REFERENCES my_table (id) MATCH FULL',
             $this->platform->getForeignKeyDeclarationSQL($foreignKey),
         );
 
@@ -1446,7 +1446,7 @@ class PlatformTest extends TestCase
         );
         self::assertEquals(
             'CONSTRAINT my_fk FOREIGN KEY (foreign_id)'
-            . ' REFERENCES my_table (id) MATCH full',
+            . ' REFERENCES my_table (id) MATCH FULL',
             $this->platform->getForeignKeyDeclarationSQL($foreignKey),
         );
     }

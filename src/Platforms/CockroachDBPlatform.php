@@ -10,6 +10,7 @@ use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\DateIntervalUnit;
 use Doctrine\DBAL\Platforms\Keywords\KeywordList;
 use Doctrine\DBAL\Schema\Column;
+use Doctrine\DBAL\Schema\Exception\InvalidState;
 use Doctrine\DBAL\Schema\ForeignKeyConstraint;
 use Doctrine\DBAL\Schema\Identifier;
 use Doctrine\DBAL\Schema\Index;
@@ -201,8 +202,18 @@ class CockroachDBPlatform extends AbstractPlatform
     {
         $query = '';
 
-        if ($foreignKey->hasOption('match')) {
-            $query .= ' MATCH ' . $foreignKey->getOption('match');
+        try {
+            $matchType = $foreignKey->getMatchType();
+
+            if (ForeignKeyConstraint\MatchType::PARTIAL === $matchType) {
+                throw new InvalidState('CockroachDB does NOT support MATCH PARTIAL');
+            }
+
+            if (ForeignKeyConstraint\MatchType::FULL === $matchType) {
+                $query .= ' MATCH FULL';
+            }
+        } catch (InvalidState) {
+            // just catch it
         }
 
         $query .= parent::getAdvancedForeignKeyOptionsSQL($foreignKey);
@@ -385,7 +396,7 @@ class CockroachDBPlatform extends AbstractPlatform
     public function getCreateIndexSQL(Index $index, string $table): string
     {
         $name = $index->getQuotedName($this);
-        $columns = $index->getColumns();
+        $columns = $index->getIndexedColumns();
 
         if (count($columns) === 0) {
             throw new InvalidArgumentException(sprintf(
@@ -410,7 +421,7 @@ class CockroachDBPlatform extends AbstractPlatform
 
     protected function getCreateIndexSQLFlags(Index $index): string
     {
-        if ($index->isUnique()) {
+        if ($index->getType() === Index\IndexType::UNIQUE) {
             return 'UNIQUE ';
         }
 
@@ -447,8 +458,8 @@ class CockroachDBPlatform extends AbstractPlatform
      */
     private function getSequenceCacheSQL(Sequence $sequence): string
     {
-        if ($sequence->getCache() > 1) {
-            return ' CACHE ' . $sequence->getCache();
+        if ($sequence->getCacheSize() > 1) {
+            return ' CACHE ' . $sequence->getCacheSize();
         }
 
         return '';

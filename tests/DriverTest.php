@@ -14,6 +14,7 @@ use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use PHPUnit\Framework\MockObject\Exception as MockException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Pdo\Pgsql;
 
 /**
  * @requires extension pdo_pgsql
@@ -50,7 +51,7 @@ class DriverTest extends TestCase
 
         self::assertInstanceOf(PDO\Connection::class, $connection);
         self::assertTrue(
-            $connection->getNativeConnection()->getAttribute(\PDO::PGSQL_ATTR_DISABLE_PREPARES),
+            $connection->getNativeConnection()->getAttribute(Pgsql::ATTR_DISABLE_PREPARES),
         );
     }
 
@@ -60,12 +61,12 @@ class DriverTest extends TestCase
     public function testConnectionDoesNotDisablePreparesWhenAttributeDefined(): void
     {
         $connection = $this->connectionHelper->connect(
-            [\PDO::PGSQL_ATTR_DISABLE_PREPARES => false],
+            [Pgsql::ATTR_DISABLE_PREPARES => false],
         );
 
         self::assertInstanceOf(PDO\Connection::class, $connection);
         self::assertNotTrue(
-            $connection->getNativeConnection()->getAttribute(\PDO::PGSQL_ATTR_DISABLE_PREPARES),
+            $connection->getNativeConnection()->getAttribute(Pgsql::ATTR_DISABLE_PREPARES),
         );
     }
 

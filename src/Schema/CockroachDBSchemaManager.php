@@ -145,7 +145,10 @@ SQL,
      */
     protected function _getPortableViewDefinition(array $view): View
     {
-        return new View($view['schemaname'] . '.' . $view['viewname'], $view['definition']);
+        return new View(
+            name: $view['schemaname'] . '.' . $view['viewname'],
+            sql: $view['definition'],
+        );
     }
 
     /**
@@ -156,7 +159,7 @@ SQL,
     protected function _getPortableTableDefinition(array $table): string
     {
         // @phpstan-ignore missingType.checkedException
-        $currentSchema = $this->getCurrentSchema();
+        $currentSchema = $this->determineCurrentSchemaName();
 
         if ($table['schema_name'] === $currentSchema) {
             return $table['table_name'];
@@ -568,7 +571,11 @@ SQL;
 
         $tableOptions = [];
         foreach ($this->connection->iterateAssociative($sql, $params) as $row) {
-            $tableOptions[$this->_getPortableTableDefinition($row)] = $row;
+            $key = $this->getCurrentSchemaName() === $row['schema_name']
+                ? $row['table_name']
+                : $row['schema_name'] . '.' . $row['table_name'];
+
+            $tableOptions[$key] = $row;
         }
 
         return $tableOptions;
@@ -597,7 +604,13 @@ SQL;
             $params[] = $tableName;
         }
 
-        $conditions[] = "n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast', 'pg_extension', 'crdb_internal')";
+        $conditions[] = "n.nspname NOT IN (
+            'pg_catalog',
+            'information_schema',
+            'pg_toast',
+            'pg_extension',
+            'crdb_internal'
+        )";
 
         return $conditions;
     }

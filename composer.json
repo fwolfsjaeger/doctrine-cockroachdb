@@ -4,7 +4,7 @@
     "description": "Doctrine DBAL CockroachDB Driver",
     "homepage": "https://github.com/fwolfsjaeger/doctrine-cockroachdb",
     "license": "MIT",
-    "version": "0.9.6",
+    "version": "0.9.7",
     "keywords": [
         "pdo_pgsql",
         "pdo",
@@ -21,7 +21,7 @@
         }
     ],
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "ext-pdo": "*",
         "ext-pdo_pgsql": "*",
         "doctrine/dbal": "4.4.*"

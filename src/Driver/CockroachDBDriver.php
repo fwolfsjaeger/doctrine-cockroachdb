@@ -12,6 +12,7 @@ use Doctrine\Deprecations\Deprecation;
 use DoctrineCockroachDB\Driver\API\ExceptionConverter;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
 use PDO;
+use Pdo\Pgsql;
 use PDOException;
 use SensitiveParameter;
 
@@ -34,21 +35,21 @@ final class CockroachDBDriver implements Driver
         unset($safeParams['password'], $safeParams['url']);
 
         try {
-            $pdo = new PDO(
-                $this->constructPdoDsn($safeParams),
-                $params['user'] ?? '',
-                $params['password'] ?? '',
-                $driverOptions,
+            $pdo = new Pgsql(
+                dsn: $this->constructPdoDsn($safeParams),
+                username: $params['user'] ?? '',
+                password: $params['password'] ?? '',
+                options: $driverOptions,
             );
         } catch (PDOException $exception) {
             throw Exception::new($exception);
         }
 
         if (
-            !isset($driverOptions[PDO::PGSQL_ATTR_DISABLE_PREPARES])
-            || true === $driverOptions[PDO::PGSQL_ATTR_DISABLE_PREPARES]
+            !isset($driverOptions[Pgsql::ATTR_DISABLE_PREPARES])
+            || true === $driverOptions[Pgsql::ATTR_DISABLE_PREPARES]
         ) {
-            $pdo->setAttribute(PDO::PGSQL_ATTR_DISABLE_PREPARES, true);
+            $pdo->setAttribute(Pgsql::ATTR_DISABLE_PREPARES, true);
         }
 
         $connection = new Connection($pdo);
