@@ -940,6 +940,11 @@ class CockroachDBPlatform extends AbstractPlatform
         return 'JSONB';
     }
 
+    public function createMetadataProvider(Connection $connection): CockroachDBMetadataProvider
+    {
+        return new CockroachDBMetadataProvider($connection, $this);
+    }
+
     public function createSchemaManager(Connection $connection): CockroachDBSchemaManager
     {
         return new CockroachDBSchemaManager($connection, $this);
