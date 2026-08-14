@@ -23,38 +23,45 @@ trait EntityManagerMockTrait
         ?Connection $connection = null,
         int $expectAtLeast = 1,
     ): EntityManagerInterface|MockObject {
-        $cockroachDBPlatform = new CockroachDBPlatform();
-        if (null === $connection) {
-            $connection = self::createMock(Connection::class);
-            $connection
-                ->expects(self::atLeast($expectAtLeast))
-                ->method('getDatabasePlatform')
-                ->willReturn($cockroachDBPlatform);
+        if ($expectAtLeast < 1) {
+            return $this->createStub(EntityManagerInterface::class);
         }
 
-        $entityManagerMock = self::createMock(EntityManagerInterface::class);
+        $expect = $this->atLeast($expectAtLeast);
+        $entityManagerMock = $this->createMock(EntityManagerInterface::class);
+
+        if (null === $connection) {
+            $connection = $this->createMock(Connection::class);
+            $connection
+                ->expects($expect)
+                ->method('getDatabasePlatform')
+                ->willReturn(new CockroachDBPlatform());
+        }
+
         $entityManagerMock
-            ->expects(self::atLeast($expectAtLeast))
+            ->expects($expect)
             ->method('getConnection')
             ->willReturn($connection);
+
         $entityManagerMock
-            ->expects(self::atLeast($expectAtLeast))
+            ->expects($expect)
             ->method('getConfiguration')
             ->willReturn(new Configuration());
+
         $entityManagerMock
-            ->expects(self::atLeast($expectAtLeast))
+            ->expects($expect)
             ->method('getMetadataFactory')
             ->willReturn(new ClassMetadataFactory());
-        $eventManagerMock = self::createStub(EventManager::class);
+
         $entityManagerMock
-            ->expects(self::atLeast($expectAtLeast))
+            ->expects($expect)
             ->method('getEventManager')
-            ->willReturn($eventManagerMock);
-        $unitOfWork = new UnitOfWork($entityManagerMock);
+            ->willReturn($this->createStub(EventManager::class));
+
         $entityManagerMock
-            ->expects(self::atLeast($expectAtLeast))
+            ->expects($expect)
             ->method('getUnitOfWork')
-            ->willReturn($unitOfWork);
+            ->willReturn(new UnitOfWork($entityManagerMock));
 
         return $entityManagerMock;
     }

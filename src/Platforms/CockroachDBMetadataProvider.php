@@ -33,7 +33,9 @@ use function str_starts_with;
 
 final readonly class CockroachDBMetadataProvider implements MetadataProvider
 {
-    /** @see https://www.postgresql.org/docs/current/catalog-pg-constraint.html */
+    /**
+     * @see https://www.postgresql.org/docs/current/catalog-pg-constraint.html
+     */
     private const REFERENTIAL_ACTIONS = [
         'a' => ReferentialAction::NO_ACTION,
         'c' => ReferentialAction::CASCADE,
@@ -42,7 +44,9 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
         'r' => ReferentialAction::RESTRICT,
     ];
 
-    /** @internal This class can be instantiated only by a database platform. */
+    /**
+     * @internal This class can be instantiated only by a database platform.
+     */
     public function __construct(
         private Connection $connection,
         private CockroachDBPlatform $platform,
@@ -51,8 +55,6 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
     }
 
     /**
-     * {@inheritDoc}
-     *
      * @see https://www.postgresql.org/docs/current/catalog-pg-database.html
      */
     public function getAllDatabaseNames(): iterable
@@ -69,8 +71,6 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
     }
 
     /**
-     * {@inheritDoc}
-     *
      * @see https://www.postgresql.org/docs/current/catalog-pg-namespace.html
      */
     public function getAllSchemaNames(): iterable
@@ -91,8 +91,6 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
     }
 
     /**
-     * {@inheritDoc}
-     *
      * @see https://www.postgresql.org/docs/current/catalog-pg-class.html
      * @see https://www.postgresql.org/docs/current/catalog-pg-namespace.html
      */
@@ -119,13 +117,11 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
         }
     }
 
-    /** {@inheritDoc} */
     public function getTableColumnsForAllTables(): iterable
     {
         return $this->getTableColumns(null, null);
     }
 
-    /** {@inheritDoc} */
     public function getTableColumnsForTable(?string $schemaName, string $tableName): iterable
     {
         if (null === $schemaName) {
@@ -364,13 +360,11 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
         return $expression;
     }
 
-    /** {@inheritDoc} */
     public function getIndexColumnsForAllTables(): iterable
     {
         return $this->getIndexColumns(null, null);
     }
 
-    /** {@inheritDoc} */
     public function getIndexColumnsForTable(?string $schemaName, string $tableName): iterable
     {
         if (null === $schemaName) {
@@ -435,13 +429,11 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
         }
     }
 
-    /** {@inheritDoc} */
     public function getPrimaryKeyConstraintColumnsForAllTables(): iterable
     {
         return $this->getPrimaryKeyConstraintColumns(null, null);
     }
 
-    /** {@inheritDoc} */
     public function getPrimaryKeyConstraintColumnsForTable(
         ?string $schemaName,
         string $tableName,
@@ -508,13 +500,11 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
         }
     }
 
-    /** {@inheritDoc} */
     public function getForeignKeyConstraintColumnsForAllTables(): iterable
     {
         return $this->getForeignKeyConstraintColumns(null, null);
     }
 
-    /** {@inheritDoc} */
     public function getForeignKeyConstraintColumnsForTable(
         ?string $schemaName,
         string $tableName,
@@ -600,13 +590,11 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
         }
     }
 
-    /** {@inheritDoc} */
     public function getTableOptionsForAllTables(): iterable
     {
         return $this->getTableOptions(null, null);
     }
 
-    /** {@inheritDoc} */
     public function getTableOptionsForTable(
         ?string $schemaName,
         string $tableName,
@@ -683,8 +671,6 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
     }
 
     /**
-     * {@inheritDoc}
-     *
      * @see https://www.postgresql.org/docs/current/catalog-pg-views.html
      */
     public function getAllViews(): iterable
@@ -707,7 +693,6 @@ final readonly class CockroachDBMetadataProvider implements MetadataProvider
         }
     }
 
-    /** {@inheritDoc} */
     public function getAllSequences(): iterable
     {
         // Using information_schema here instead of pg_sequences since the latter also includes sequences that are owned

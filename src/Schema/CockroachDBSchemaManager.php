@@ -38,9 +38,6 @@ use const CASE_LOWER;
  */
 class CockroachDBSchemaManager extends AbstractSchemaManager
 {
-    /**
-     * {@inheritDoc}
-     */
     public function listSchemaNames(): array
     {
         return $this->connection->fetchFirstColumn(
@@ -91,9 +88,6 @@ SQL,
         return $this->determineCurrentSchema();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function _getPortableTableForeignKeyDefinition(array $tableForeignKey): ForeignKeyConstraint
     {
         $onUpdate = null;
@@ -140,9 +134,6 @@ SQL,
         );
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function _getPortableViewDefinition(array $view): View
     {
         return new View(
@@ -153,8 +144,6 @@ SQL,
 
     /**
      * @deprecated Use the schema name and the unqualified table name separately instead.
-     *
-     * {@inheritDoc}
      */
     protected function _getPortableTableDefinition(array $table): string
     {
@@ -168,9 +157,6 @@ SQL,
         return $table['schema_name'] . '.' . $table['table_name'];
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function _getPortableTableIndexesList(array $rows, string $tableName): array
     {
         return parent::_getPortableTableIndexesList(
@@ -191,17 +177,11 @@ SQL,
         );
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function _getPortableDatabaseDefinition(array $database): string
     {
         return $database['datname'];
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function _getPortableSequenceDefinition(array $sequence): Sequence
     {
         if ('public' !== $sequence['schemaname']) {
@@ -232,9 +212,6 @@ SQL,
         return new Sequence($sequenceName, (int)$sequence['increment_by'], (int)$sequence['min_value']);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function _getPortableTableColumnDefinition(array $tableColumn): Column
     {
         $tableColumn = array_change_key_case($tableColumn, CASE_LOWER);
@@ -545,9 +522,6 @@ SQL;
         return $this->connection->executeQuery($sql, $params);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function fetchTableOptionsByTable(string $databaseName, ?string $tableName = null): array
     {
         $params = [];

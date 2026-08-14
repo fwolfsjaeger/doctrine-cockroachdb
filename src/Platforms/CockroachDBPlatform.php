@@ -48,7 +48,7 @@ class CockroachDBPlatform extends AbstractPlatform
     private bool $useBooleanTrueFalseStrings = true;
 
     /**
-     * @var string[][]
+     * @var array<array<string>>
      */
     private array $booleanLiterals = [
         'true' => [
@@ -141,25 +141,33 @@ class CockroachDBPlatform extends AbstractPlatform
         return true;
     }
 
-    /** @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy. */
+    /**
+     * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
+     */
     public function supportsPartialIndexes(): bool
     {
         return true;
     }
 
-    /** @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy. */
+    /**
+     * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
+     */
     public function supportsCommentOnStatement(): bool
     {
         return true;
     }
 
-    /** @internal The method should be only used from within the {@see AbstractSchemaManager} class hierarchy. */
+    /**
+     * @internal The method should be only used from within the {@see AbstractSchemaManager} class hierarchy.
+     */
     public function getListDatabasesSQL(): string
     {
         return 'SELECT datname FROM pg_database';
     }
 
-    /** @internal The method should be only used from within the {@see AbstractSchemaManager} class hierarchy. */
+    /**
+     * @internal The method should be only used from within the {@see AbstractSchemaManager} class hierarchy.
+     */
     public function getListSequencesSQL(string $database): string
     {
         return '
@@ -177,7 +185,9 @@ class CockroachDBPlatform extends AbstractPlatform
                 AND sequence_schema != 'crdb_internal'";
     }
 
-    /** @internal The method should be only used from within the {@see AbstractSchemaManager} class hierarchy. */
+    /**
+     * @internal The method should be only used from within the {@see AbstractSchemaManager} class hierarchy.
+     */
     public function getListViewsSQL(string $database): string
     {
         return '
@@ -221,9 +231,6 @@ class CockroachDBPlatform extends AbstractPlatform
         return $query;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getAlterTableSQL(TableDiff $diff): array
     {
         $sql = [];
@@ -332,9 +339,6 @@ class CockroachDBPlatform extends AbstractPlatform
         return $type->getSQLDeclaration($columnDefinition, $this);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function getRenameIndexSQL(string $oldIndexName, Index $index, string $tableName): array
     {
         if (str_contains($tableName, '.')) {
@@ -372,9 +376,6 @@ class CockroachDBPlatform extends AbstractPlatform
         return ' STORING (' . implode(', ', $columns) . ')';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getIndexDeclarationSQL(Index $index): string
     {
         $columns = $index->getColumns();
@@ -390,9 +391,6 @@ class CockroachDBPlatform extends AbstractPlatform
             . $this->getPartialIndexSQL($index);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getCreateIndexSQL(Index $index, string $table): string
     {
         $name = $index->getQuotedName($this);
@@ -434,9 +432,6 @@ class CockroachDBPlatform extends AbstractPlatform
         return '';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getCreateSequenceSQL(Sequence $sequence): string
     {
         return 'CREATE SEQUENCE ' . $sequence->getQuotedName($this) .
@@ -503,9 +498,6 @@ class CockroachDBPlatform extends AbstractPlatform
         return parent::getDropIndexSQL($name, $table);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function _getCreateTableSQL(string $name, array $columns, array $options = []): array
     {
         $this->validateCreateTableOptions($options, __METHOD__);
@@ -570,9 +562,7 @@ class CockroachDBPlatform extends AbstractPlatform
             return $callback(true);
         }
 
-        /**
-         * Better safe than sorry: http://php.net/in_array#106319
-         */
+        /** Better safe than sorry: http://php.net/in_array#106319 */
         if (in_array(strtolower(trim($value)), $this->booleanLiterals['false'], true)) {
             return $callback(false);
         }
@@ -623,7 +613,6 @@ class CockroachDBPlatform extends AbstractPlatform
 
         return $this->doConvertBooleans(
             $item,
-            /** @param mixed $value */
             static function ($value): string {
                 if (null === $value) {
                     return 'NULL';
@@ -642,7 +631,6 @@ class CockroachDBPlatform extends AbstractPlatform
 
         return $this->doConvertBooleans(
             $item,
-            /** @param mixed $value */
             static function ($value): ?int {
                 return null === $value ? null : (int) $value;
             },
@@ -676,17 +664,11 @@ class CockroachDBPlatform extends AbstractPlatform
             . $this->_getTransactionIsolationLevelSQL($level);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getBooleanTypeDeclarationSQL(array $column): string
     {
         return 'BOOLEAN';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getIntegerTypeDeclarationSQL(array $column): string
     {
         $type = !empty($column['autoincrement']) ? 'SERIAL4' : 'INT4';
@@ -694,9 +676,6 @@ class CockroachDBPlatform extends AbstractPlatform
         return $type . $this->_getCommonIntegerTypeDeclarationSQL($column);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getBigIntTypeDeclarationSQL(array $column): string
     {
         $type = !empty($column['autoincrement']) ? 'SERIAL8' : 'INT8';
@@ -704,9 +683,6 @@ class CockroachDBPlatform extends AbstractPlatform
         return $type . $this->_getCommonIntegerTypeDeclarationSQL($column);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getSmallIntTypeDeclarationSQL(array $column): string
     {
         $type = !empty($column['autoincrement']) ? 'SERIAL2' : 'INT2';
@@ -714,49 +690,31 @@ class CockroachDBPlatform extends AbstractPlatform
         return $type . $this->_getCommonIntegerTypeDeclarationSQL($column);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getGuidTypeDeclarationSQL(array $column): string
     {
         return 'UUID';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getDateTimeTypeDeclarationSQL(array $column): string
     {
         return 'TIMESTAMP';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getDateTimeTzTypeDeclarationSQL(array $column): string
     {
         return 'TIMESTAMPTZ';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getDateTypeDeclarationSQL(array $column): string
     {
         return 'DATE';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getTimeTypeDeclarationSQL(array $column): string
     {
         return 'TIME';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function _getCommonIntegerTypeDeclarationSQL(array $column): string
     {
         if (!empty($column['autoincrement'])) {
@@ -787,9 +745,6 @@ class CockroachDBPlatform extends AbstractPlatform
         return 'BYTEA';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getClobTypeDeclarationSQL(array $column): string
     {
         return 'TEXT';
@@ -883,7 +838,9 @@ class CockroachDBPlatform extends AbstractPlatform
         ];
     }
 
-    /** @deprecated */
+    /**
+     * @deprecated
+     */
     protected function createReservedKeywordsList(): KeywordList
     {
         Deprecation::triggerIfCalledFromOutside(
@@ -896,17 +853,12 @@ class CockroachDBPlatform extends AbstractPlatform
         return new CockroachDBKeywords();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getBlobTypeDeclarationSQL(array $column): string
     {
         return 'BYTEA';
     }
 
     /**
-     * {@inheritDoc}
-     *
      * @internal the method should be only used from within the {@see AbstractPlatform} class hierarchy
      */
     public function getDefaultValueDeclarationSQL(array $column): string
@@ -918,23 +870,19 @@ class CockroachDBPlatform extends AbstractPlatform
         return parent::getDefaultValueDeclarationSQL($column);
     }
 
-    /** @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy. */
+    /**
+     * @internal The method should be only used from within the {@see AbstractPlatform} class hierarchy.
+     */
     public function supportsColumnCollation(): bool
     {
         return true;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getJsonTypeDeclarationSQL(array $column): string
     {
         return 'JSONB';
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function getJsonbTypeDeclarationSQL(array $column): string
     {
         return 'JSONB';

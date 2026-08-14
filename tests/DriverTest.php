@@ -11,10 +11,10 @@ use Doctrine\DBAL\Driver\Exception as DoctrineDriverException;
 use Doctrine\DBAL\Driver\PDO;
 use DoctrineCockroachDB\Driver\API\ExceptionConverter as CockroachDBExceptionConverter;
 use DoctrineCockroachDB\Platforms\CockroachDBPlatform;
+use Pdo\Pgsql;
 use PHPUnit\Framework\MockObject\Exception as MockException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Pdo\Pgsql;
 
 /**
  * @requires extension pdo_pgsql

@@ -25,7 +25,9 @@ use function str_contains;
 
 final class ExceptionConverter implements ExceptionConverterInterface
 {
-    /** @see http://www.postgresql.org/docs/9.4/static/errcodes-appendix.html */
+    /**
+     * @see http://www.postgresql.org/docs/9.4/static/errcodes-appendix.html
+     */
     public function convert(Exception $exception, ?Query $query): DriverException
     {
         switch ($exception->getSQLState()) {

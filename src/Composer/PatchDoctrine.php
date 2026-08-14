@@ -40,9 +40,7 @@ class PatchDoctrine
                 'Utility',
             ]);
 
-        /**
-         * @var SplFileInfo $fileInfo
-         */
+        /** @var SplFileInfo $fileInfo */
         foreach ($finder as $fileInfo) {
             $data = file_get_contents($fileInfo->getRealPath());
 

@@ -25,7 +25,6 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
     private ?string $insertStmt = null;
 
     /**
-     * {@inheritDoc}
      * @throws DoctrineDbalException
      */
     public function executeInserts(): void
@@ -89,7 +88,6 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
     }
 
     /**
-     * {@inheritDoc}
      * @throws EntityNotFoundException
      * @throws MappingException
      */
@@ -221,7 +219,6 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
     }
 
     /**
-     * {@inheritDoc}
      * @throws DoctrineDbalException
      */
     public function getInsertSQL(): string
@@ -283,9 +280,6 @@ final class BasicEntityPersister extends DoctrineBasicEntityPersister
         return $this->insertStmt;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     protected function getInsertColumnList(): array
     {
         if (!($this->platform instanceof CockroachDBPlatform)) {

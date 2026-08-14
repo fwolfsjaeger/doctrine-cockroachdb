@@ -11,9 +11,6 @@ use Doctrine\DBAL\Platforms\Keywords\KeywordList;
  */
 class CockroachDBKeywords extends KeywordList
 {
-    /**
-     * {@inheritDoc}
-     */
     protected function getKeywords(): array
     {
         return [

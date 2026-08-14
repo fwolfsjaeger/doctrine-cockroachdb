@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DoctrineCockroachDB\Tests\ORM\Listener;
 
 use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\LoadClassMetadataEventArgs;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\JoinColumn;
@@ -92,12 +93,14 @@ final class RemoveDefaultFromForeignKeysListenerTest extends TestCase
                 ],
             ],
         );
-        $entityManagerMock = $this->getEntityManagerMock(expectAtLeast: 0);
+
+        $entityManagerMock = $this->createMock(EntityManagerInterface::class);
         $entityManagerMock
             ->expects($this->once())
             ->method('getClassMetadata')
             ->with(TestEntity::class)
             ->willReturn($targetClassMetadata);
+
         $eventArgs = new LoadClassMetadataEventArgs($classMetadata, $entityManagerMock);
 
         $removeDefaultFromForeignKeysListener->loadClassMetadata($eventArgs);

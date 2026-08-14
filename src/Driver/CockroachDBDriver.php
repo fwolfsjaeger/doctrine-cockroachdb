@@ -18,9 +18,6 @@ use SensitiveParameter;
 
 final class CockroachDBDriver implements Driver
 {
-    /**
-     * {@inheritDoc}
-     */
     public function connect(
         #[SensitiveParameter]
         array $params,

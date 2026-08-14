@@ -21,9 +21,6 @@ final class SerialGenerator extends AbstractIdGenerator
         );
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public function isPostInsertGenerator(): bool
     {
         return true;

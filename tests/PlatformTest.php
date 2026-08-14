@@ -33,9 +33,6 @@ class PlatformTest extends TestCase
     protected CockroachDBPlatform $platform;
     private ?Type $backedUpType = null;
 
-    /**
-     * @return void
-     */
     protected function setUp(): void
     {
         $this->platform = $this->createPlatform();
@@ -62,9 +59,6 @@ class PlatformTest extends TestCase
         ];
     }
 
-    /**
-     * @return void
-     */
     public function testGetInvalidForeignKeyReferentialActionSQL(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -72,7 +66,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testCreateWithNoColumns(): void
@@ -84,7 +77,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -100,7 +92,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -115,9 +106,6 @@ class PlatformTest extends TestCase
         self::assertEquals($this->getGenerateTableWithMultiColumnUniqueIndexSql(), $sql);
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesIndexCreationSql(): void
     {
         $indexDef = new Index('my_idx', ['user_name', 'last_login']);
@@ -128,9 +116,6 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesUniqueIndexCreationSql(): void
     {
         $indexDef = new Index('index_name', ['test', 'test2'], true);
@@ -139,9 +124,6 @@ class PlatformTest extends TestCase
         self::assertEquals($this->getGenerateUniqueIndexSql(), $sql);
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesGinIndexCreationSql(): void
     {
         $indexDef = new Index(
@@ -161,9 +143,6 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesPartialIndexesSqlOnlyWhenSupportingPartialIndexes(): void
     {
         $where = 'test IS NULL AND test2 IS NOT NULL';
@@ -189,9 +168,6 @@ class PlatformTest extends TestCase
         }
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesForeignKeyCreationSql(): void
     {
         $fk = new ForeignKeyConstraint(['fk_name_id'], 'other_table', ['id'], '');
@@ -199,9 +175,6 @@ class PlatformTest extends TestCase
         self::assertEquals($this->getGenerateForeignKeySql(), $sql);
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesConstraintCreationSql(): void
     {
         $idx = new Index('constraint_name', ['test'], true, false);
@@ -221,72 +194,43 @@ class PlatformTest extends TestCase
         self::assertEquals($this->getGenerateConstraintForeignKeySql($fk), $sql);
     }
 
-    /**
-     * @param string $value1
-     * @param string $value2
-     * @return string
-     */
     protected function getBitAndComparisonExpressionSql(string $value1, string $value2): string
     {
         return '(' . $value1 . ' & ' . $value2 . ')';
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesBitAndComparisonExpressionSql(): void
     {
         $sql = $this->platform->getBitAndComparisonExpression('2', '4');
         self::assertEquals($this->getBitAndComparisonExpressionSql('2', '4'), $sql);
     }
 
-    /**
-     * @param string $value1
-     * @param string $value2
-     * @return string
-     */
     protected function getBitOrComparisonExpressionSql(string $value1, string $value2): string
     {
         return '(' . $value1 . ' | ' . $value2 . ')';
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesBitOrComparisonExpressionSql(): void
     {
         $sql = $this->platform->getBitOrComparisonExpression('2', '4');
         self::assertEquals($this->getBitOrComparisonExpressionSql('2', '4'), $sql);
     }
 
-    /**
-     * @return string
-     */
     public function getCreateUniqueIndexSql(): string
     {
         return 'CREATE UNIQUE INDEX constraint_name ON test (test)';
     }
 
-    /**
-     * @return string
-     */
     public function getGenerateConstraintUniqueIndexSql(): string
     {
         return 'ALTER TABLE test ADD CONSTRAINT constraint_name UNIQUE (test)';
     }
 
-    /**
-     * @return string
-     */
     public function getGenerateConstraintPrimaryIndexSql(): string
     {
         return 'ALTER TABLE test ADD PRIMARY KEY (test)';
     }
 
-    /**
-     * @param ForeignKeyConstraint $fk
-     * @return string
-     */
     public function getGenerateConstraintForeignKeySql(ForeignKeyConstraint $fk): string
     {
         $quotedForeignTable = $fk->getQuotedForeignTableName($this->platform);
@@ -298,7 +242,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGetCustomColumnDeclarationSql(): void
@@ -310,7 +253,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -324,7 +266,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -372,7 +313,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -387,7 +327,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGetDefaultValueDeclarationSQL(): void
@@ -400,7 +339,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGetDefaultValueDeclarationSQLDateTime(): void
@@ -418,7 +356,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGetDefaultValueDeclarationSQLForIntegerTypes(): void
@@ -435,7 +372,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGetDefaultValueDeclarationSQLForDateType(): void
@@ -453,7 +389,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testKeywordList(): void
@@ -464,7 +399,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -479,7 +413,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -494,7 +427,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -509,7 +441,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -545,9 +476,6 @@ class PlatformTest extends TestCase
         self::assertEquals($this->getQuotedColumnInForeignKeySQL(), $sql);
     }
 
-    /**
-     * @return void
-     */
     public function testQuotesReservedKeywordInUniqueConstraintDeclarationSQL(): void
     {
         $constraint = new UniqueConstraint('select', ['foo'], [], []);
@@ -558,9 +486,6 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testQuotesReservedKeywordInTruncateTableSQL(): void
     {
         self::assertSame(
@@ -569,9 +494,6 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testQuotesReservedKeywordInIndexDeclarationSQL(): void
     {
         $index = new Index('select', ['foo']);
@@ -582,16 +504,12 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testSupportsCommentOnStatement(): void
     {
         self::assertSame($this->supportsCommentOnStatement(), $this->platform->supportsCommentOnStatement());
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -632,7 +550,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -664,7 +581,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -697,7 +613,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -759,7 +674,6 @@ class PlatformTest extends TestCase
     /**
      * Returns SQL statements for {@link testQuotesAlterTableRenameColumn}.
      *
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -797,7 +711,6 @@ class PlatformTest extends TestCase
     /**
      * Returns SQL statements for {@link testQuotesAlterTableChangeColumnLength}.
      *
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -829,7 +742,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -862,7 +774,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -875,33 +786,21 @@ class PlatformTest extends TestCase
         self::assertSame($expectedSql, $this->platform->getDropForeignKeySQL($foreignKeyName, $tableName));
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotesDropConstraintSQL(): string
     {
         return 'ALTER TABLE table DROP CONSTRAINT "select"';
     }
 
-    /**
-     * @return string
-     */
     protected function getStringLiteralQuoteCharacter(): string
     {
         return "'";
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotedCommentOnColumnSQLWithoutQuoteCharacter(): string
     {
         return "COMMENT ON COLUMN mytable.id IS 'This is a comment'";
     }
 
-    /**
-     * @return void
-     */
     public function testGetCommentOnColumnSQLWithoutQuoteCharacter(): void
     {
         self::assertEquals(
@@ -910,17 +809,11 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotedCommentOnColumnSQLWithQuoteCharacter(): string
     {
         return "COMMENT ON COLUMN mytable.id IS 'It''s a quote !'";
     }
 
-    /**
-     * @return void
-     */
     public function testGetCommentOnColumnSQLWithQuoteCharacter(): void
     {
         $c = $this->getStringLiteralQuoteCharacter();
@@ -964,64 +857,42 @@ class PlatformTest extends TestCase
         ];
     }
 
-    /**
-     * @return string
-     */
     protected static function getInlineColumnCommentDelimiter(): string
     {
         return "'";
     }
 
-    /**
-     * @return string
-     */
     protected static function getInlineColumnRegularCommentSQL(): string
     {
         return "COMMENT 'Regular comment'";
     }
 
-    /**
-     * @return string
-     */
     protected static function getInlineColumnCommentRequiringEscapingSQL(): string
     {
         return "COMMENT 'Using inline comment delimiter '' works'";
     }
 
-    /**
-     * @return string
-     */
     protected static function getInlineColumnEmptyCommentSQL(): string
     {
         return "COMMENT ''";
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotedStringLiteralWithoutQuoteCharacter(): string
     {
         return "'No quote'";
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotedStringLiteralWithQuoteCharacter(): string
     {
         return "'It''s a quote'";
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotedStringLiteralQuoteCharacter(): string
     {
         return "''''";
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testThrowsExceptionOnGeneratingInlineColumnCommentSQLIfUnsupported(): void
@@ -1035,9 +906,6 @@ class PlatformTest extends TestCase
         $this->platform->getInlineColumnCommentSQL('unsupported');
     }
 
-    /**
-     * @return void
-     */
     public function testQuoteStringLiteral(): void
     {
         $c = $this->getStringLiteralQuoteCharacter();
@@ -1057,7 +925,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -1104,7 +971,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -1144,7 +1010,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -1232,9 +1097,6 @@ class PlatformTest extends TestCase
         ];
     }
 
-    /**
-     * @return void
-     */
     public function testItEscapesStringsForLike(): void
     {
         self::assertSame(
@@ -1244,7 +1106,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testZeroOffsetWithoutLimitIsIgnored(): void
@@ -1278,9 +1139,6 @@ class PlatformTest extends TestCase
         ];
     }
 
-    /**
-     * @return void
-     */
     public function testEmptyTableDiff(): void
     {
         $diff = new TableDiff(
@@ -1302,7 +1160,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function tearDown(): void
@@ -1315,32 +1172,23 @@ class PlatformTest extends TestCase
         $this->backedUpType = null;
     }
 
-    /**
-     * @return CockroachDBPlatform
-     */
     public function createPlatform(): CockroachDBPlatform
     {
         return new CockroachDBPlatform();
     }
 
-    /**
-     * @return Comparator
-     */
     public function createComparator(): Comparator
     {
         return new Comparator($this->createPlatform());
     }
 
-    /**
-     * @return string
-     */
     public function getGenerateTableSql(): string
     {
         return 'CREATE TABLE test (id SERIAL4 GENERATED BY DEFAULT AS IDENTITY NOT NULL, test VARCHAR(255) DEFAULT NULL, PRIMARY KEY(id))';
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     public function getGenerateTableWithMultiColumnUniqueIndexSql(): array
     {
@@ -1350,26 +1198,17 @@ class PlatformTest extends TestCase
         ];
     }
 
-    /**
-     * @return string
-     */
     public function getGenerateIndexSql(): string
     {
         return 'CREATE INDEX my_idx ON mytable (user_name, last_login)';
     }
 
-    /**
-     * @return string
-     */
     protected function getGenerateForeignKeySql(): string
     {
         return 'ALTER TABLE test ADD FOREIGN KEY (fk_name_id)'
             . ' REFERENCES other_table (id)';
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesForeignKeySqlForNonStandardOptions(): void
     {
         $foreignKey = new ForeignKeyConstraint(
@@ -1452,7 +1291,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGeneratesSqlSnippets(): void
@@ -1469,7 +1307,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGeneratesTransactionCommands(): void
@@ -1493,7 +1330,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGeneratesDDLSnippets(): void
@@ -1504,7 +1340,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -1588,9 +1423,6 @@ class PlatformTest extends TestCase
         self::assertSame('', $sql);
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesTypeDeclarationForIntegers(): void
     {
         self::assertEquals(
@@ -1609,9 +1441,6 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testGeneratesTypeDeclarationForStrings(): void
     {
         self::assertEquals(
@@ -1630,24 +1459,17 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return string
-     */
     public function getGenerateUniqueIndexSql(): string
     {
         return 'CREATE UNIQUE INDEX index_name ON test (test, test2)';
     }
 
-    /**
-     * @return string
-     */
     public function getGenerateGinIndexSql(): string
     {
         return 'CREATE INVERTED INDEX gin_index ON gin_index_table (json_column)';
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGeneratesSequenceSqlCommands(): void
@@ -1667,40 +1489,27 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testSupportsIdentityColumns(): void
     {
         self::assertTrue($this->platform->supportsIdentityColumns());
     }
 
-    /**
-     * @return void
-     */
     public function testSupportsSavePoints(): void
     {
         self::assertTrue($this->platform->supportsSavepoints());
     }
 
-    /**
-     * @return void
-     */
     public function testSupportsSequences(): void
     {
         self::assertTrue($this->platform->supportsSequences());
     }
 
-    /**
-     * @return bool
-     */
     protected function supportsCommentOnStatement(): bool
     {
         return true;
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testModifyLimitQuery(): void
@@ -1710,7 +1519,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testModifyLimitQueryWithEmptyOffset(): void
@@ -1720,7 +1528,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     public function getCreateTableColumnCommentsSQL(): array
     {
@@ -1731,7 +1539,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     public function getAlterTableColumnCommentsSQL(): array
     {
@@ -1744,7 +1552,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     public function getCreateTableColumnTypeCommentsSQL(): array
     {
@@ -1754,7 +1562,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getQuotedColumnInPrimaryKeySQL(): array
     {
@@ -1762,7 +1570,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getQuotedColumnInIndexSQL(): array
     {
@@ -1773,7 +1581,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getQuotedNameInIndexSQL(): array
     {
@@ -1784,7 +1592,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getQuotedColumnInForeignKeySQL(): array
     {
@@ -1813,9 +1621,6 @@ class PlatformTest extends TestCase
         self::assertEquals($preparedStatementValue, $platform->convertBooleans($databaseValue));
     }
 
-    /**
-     * @return void
-     */
     public function testConvertBooleanAsLiteralIntegers(): void
     {
         $platform = $this->createPlatform();
@@ -1840,9 +1645,6 @@ class PlatformTest extends TestCase
         self::assertSame($integerValue, $platform->convertBooleansToDatabaseValue($booleanValue));
     }
 
-    /**
-     * @return void
-     */
     public function testConvertBooleanAsDatabaseValueIntegers(): void
     {
         $platform = $this->createPlatform();
@@ -1864,9 +1666,6 @@ class PlatformTest extends TestCase
         self::assertSame($booleanValue, $platform->convertFromBoolean($databaseValue));
     }
 
-    /**
-     * @return void
-     */
     public function testThrowsExceptionWithInvalidBooleanLiteral(): void
     {
         $platform = $this->createPlatform();
@@ -1878,7 +1677,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testGetCreateSchemaSQL(): void
@@ -1889,7 +1687,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -1973,7 +1770,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -2003,7 +1799,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -2046,9 +1841,6 @@ class PlatformTest extends TestCase
         ];
     }
 
-    /**
-     * @return void
-     */
     public function testReturnsBinaryTypeDeclarationSQL(): void
     {
         self::assertSame('BYTEA', $this->platform->getBinaryTypeDeclarationSQL([]));
@@ -2061,7 +1853,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -2112,7 +1903,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getAlterTableRenameIndexSQL(): array
     {
@@ -2120,7 +1911,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getQuotedAlterTableRenameIndexSQL(): array
     {
@@ -2157,7 +1948,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getQuotedAlterTableRenameColumnSQL(): array
     {
@@ -2175,7 +1966,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getQuotedAlterTableChangeColumnLengthSQL(): array
     {
@@ -2190,7 +1981,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getAlterTableRenameIndexInSchemaSQL(): array
     {
@@ -2198,7 +1989,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getQuotedAlterTableRenameIndexInSchemaSQL(): array
     {
@@ -2208,24 +1999,18 @@ class PlatformTest extends TestCase
         ];
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotesDropForeignKeySQL(): string
     {
         return 'ALTER TABLE table DROP CONSTRAINT select';
     }
 
-    /**
-     * @return void
-     */
     public function testReturnsGuidTypeDeclarationSQL(): void
     {
         self::assertSame('UUID', $this->platform->getGuidTypeDeclarationSQL([]));
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     public function getAlterTableRenameColumnSQL(): array
     {
@@ -2233,7 +2018,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getCommentOnColumnSQL(): array
     {
@@ -2245,7 +2030,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -2265,32 +2049,23 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotesReservedKeywordInUniqueConstraintDeclarationSQL(): string
     {
         return 'CONSTRAINT "select" UNIQUE (foo)';
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotesReservedKeywordInIndexDeclarationSQL(): string
     {
         return 'INDEX "select" (foo)';
     }
 
-    /**
-     * @return string
-     */
     protected function getQuotesReservedKeywordInTruncateTableSQL(): string
     {
         return 'TRUNCATE "select"';
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getAlterStringToFixedStringSQL(): array
     {
@@ -2298,7 +2073,7 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return string[]
+     * @return array<string>
      */
     protected function getGeneratesAlterTableRenameIndexUsedByForeignKeySQL(): array
     {
@@ -2306,7 +2081,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testInitializesTsvectorTypeMapping(): void
@@ -2315,16 +2089,12 @@ class PlatformTest extends TestCase
         self::assertEquals('text', $this->platform->getDoctrineTypeMapping('tsvector'));
     }
 
-    /**
-     * @return void
-     */
     public function testSupportsPartialIndexes(): void
     {
         self::assertTrue($this->platform->supportsPartialIndexes());
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -2344,7 +2114,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      * @throws SchemaException
      */
@@ -2363,9 +2132,6 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testColumnCollationDeclarationSQL(): void
     {
         self::assertEquals(
@@ -2374,9 +2140,6 @@ class PlatformTest extends TestCase
         );
     }
 
-    /**
-     * @return void
-     */
     public function testReturnsJsonTypeDeclarationSQL(): void
     {
         self::assertSame('JSONB', $this->platform->getJsonTypeDeclarationSQL([]));
@@ -2384,9 +2147,6 @@ class PlatformTest extends TestCase
         self::assertSame('JSONB', $this->platform->getJsonTypeDeclarationSQL(['jsonb' => true]));
     }
 
-    /**
-     * @return void
-     */
     public function testReturnsSmallIntTypeDeclarationSQL(): void
     {
         self::assertSame(
@@ -2406,7 +2166,6 @@ class PlatformTest extends TestCase
     }
 
     /**
-     * @return void
      * @throws Exception
      */
     public function testInitializesJsonTypeMapping(): void
